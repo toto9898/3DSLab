@@ -1,0 +1,33 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/3DS",
+                "${workspaceFolder}/src/3DS/Chunks",
+                "${workspaceFolder}/src/3DS/SceneObjects", 
+                "${workspaceFolder}/src/3DS/Animation",
+                "${workspaceFolder}/build/_deps/eigen-src",
+                "${workspaceFolder}/build/_deps/libigl-src/include",
+                "${workspaceFolder}/build/_deps/glad-src/include",
+                "${workspaceFolder}/build/_deps/glfw-src/include",
+                "${workspaceFolder}/src/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "WIN32_LEAN_AND_MEAN"
+            ],
+            "windowsSdkVersion": "10.0.26100.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-msvc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
