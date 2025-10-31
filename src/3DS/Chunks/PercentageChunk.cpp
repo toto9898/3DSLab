@@ -14,7 +14,7 @@ namespace Debugger3DS {
         
         // Read percentage value
         int16_t percentage;
-        if (!ReadShort(percentage)) {
+        if (!Read(percentage)) {
             return false;
         }
         
@@ -71,7 +71,7 @@ namespace Debugger3DS {
         
         // Read percentage value as float
         float percentage;
-        if (!ReadFloat(percentage)) {
+        if (!Read(percentage)) {
             return false;
         }
         

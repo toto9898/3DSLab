@@ -6,7 +6,7 @@ namespace Debugger3DS {
     
     bool TexVertsChunk::ReadData(Importer& importer) {
         uint16_t count;
-        if (!ReadUShort(count)) {
+        if (!Read(count)) {
             return false;
         }
         
@@ -20,7 +20,7 @@ namespace Debugger3DS {
         targetMesh_->texCoords.reserve(count);
         for (uint16_t i = 0; i < count; ++i) {
             float u, v;
-            if (!ReadFloat(u) || !ReadFloat(v)) {
+            if (!Read(u) || !Read(v)) {
                 return false;
             }
             targetMesh_->texCoords.emplace_back(u, v);

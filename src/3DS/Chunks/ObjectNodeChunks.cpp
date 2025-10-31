@@ -100,9 +100,9 @@ namespace Debugger3DS {
     // PosTrackTagChunk implementation
     bool PosTrackTagChunk::ReadKeyData(AnimationKey<Eigen::Vector3f>& key) {
         // Read position vector
-        return ReadFloat(key.value.x()) &&
-               ReadFloat(key.value.y()) &&
-               ReadFloat(key.value.z());
+        return Read(key.value.x()) &&
+               Read(key.value.y()) &&
+               Read(key.value.z());
     }
 
     void PosTrackTagChunk::SetTrackInImporter(Importer& importer) {
@@ -114,10 +114,10 @@ namespace Debugger3DS {
     // RotTrackTagChunk implementation
     bool RotTrackTagChunk::ReadKeyData(AnimationKey<Eigen::Vector4f>& key) {
         // Read rotation quaternion (angle + axis in 3DS format)
-        return ReadFloat(key.value.w()) &&  // Angle
-               ReadFloat(key.value.x()) &&  // Axis X
-               ReadFloat(key.value.y()) &&  // Axis Y
-               ReadFloat(key.value.z());    // Axis Z
+        return Read(key.value.w()) &&  // Angle
+               Read(key.value.x()) &&  // Axis X
+               Read(key.value.y()) &&  // Axis Y
+               Read(key.value.z());    // Axis Z
     }
 
     void RotTrackTagChunk::SetTrackInImporter(Importer& importer) {
@@ -129,9 +129,9 @@ namespace Debugger3DS {
     // SclTrackTagChunk implementation
     bool SclTrackTagChunk::ReadKeyData(AnimationKey<Eigen::Vector3f>& key) {
         // Read scale vector
-        return ReadFloat(key.value.x()) &&
-               ReadFloat(key.value.y()) &&
-               ReadFloat(key.value.z());
+        return Read(key.value.x()) &&
+               Read(key.value.y()) &&
+               Read(key.value.z());
     }
 
     void SclTrackTagChunk::SetTrackInImporter(Importer& importer) {
@@ -143,7 +143,7 @@ namespace Debugger3DS {
     // MorphTrackTagChunk implementation
     bool MorphTrackTagChunk::ReadKeyData(AnimationKey<std::string>& key) {
         // Read morph target name (null-terminated string)
-        return ReadString(key.value);
+        return Read(key.value);
     }
 
     void MorphTrackTagChunk::SetTrackInImporter(Importer& importer) {
@@ -168,7 +168,7 @@ namespace Debugger3DS {
 
     bool NodeIdChunk::ReadData(Importer& importer) {
         // Read node ID (uint16_t)
-        if (!ReadUShort(nodeId_)) {
+        if (!Read(nodeId_)) {
             return false;
         }
 
@@ -188,7 +188,7 @@ namespace Debugger3DS {
 
     bool InstanceNameChunk::ReadData(Importer& importer) {
         // Read null-terminated string
-        if (!ReadString(instanceName_)) {
+        if (!Read(instanceName_)) {
             return false;
         }
 
@@ -208,16 +208,16 @@ namespace Debugger3DS {
 
     bool BoundBoxChunk::ReadData(Importer& importer) {
         // Read min point (3 floats)
-        if (!ReadFloat(min_.x()) ||
-            !ReadFloat(min_.y()) ||
-            !ReadFloat(min_.z())) {
+        if (!Read(min_.x()) ||
+            !Read(min_.y()) ||
+            !Read(min_.z())) {
             return false;
         }
         
         // Read max point (3 floats)
-        if (!ReadFloat(max_.x()) ||
-            !ReadFloat(max_.y()) ||
-            !ReadFloat(max_.z())) {
+        if (!Read(max_.x()) ||
+            !Read(max_.y()) ||
+            !Read(max_.z())) {
             return false;
         }
 
@@ -241,7 +241,7 @@ namespace Debugger3DS {
 
     bool MorphSmoothChunk::ReadData(Importer& importer) {
         // Read morph smooth value (float)
-        if (!ReadFloat(morphSmooth_)) {
+        if (!Read(morphSmooth_)) {
             return false;
         }
 
@@ -261,9 +261,9 @@ namespace Debugger3DS {
 
     bool PivotChunk::ReadData(Importer& importer) {
         // Read pivot point (3 floats: x, y, z)
-        if (!ReadFloat(pivot_.x()) ||
-            !ReadFloat(pivot_.y()) ||
-            !ReadFloat(pivot_.z())) {
+        if (!Read(pivot_.x()) ||
+            !Read(pivot_.y()) ||
+            !Read(pivot_.z())) {
             return false;
         }
         

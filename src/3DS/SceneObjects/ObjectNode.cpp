@@ -17,14 +17,6 @@ namespace Debugger3DS {
         Eigen::Vector3f scale = scaleTrack.HasKeys() ? 
             scaleTrack.GetValueAtFrame(frame) : Eigen::Vector3f::Ones();
         
-        if (associatedMeshName == "Arch27_012" || associatedMeshName == "Arch27_014" || associatedMeshName == "Arch27_015") {
-            std::cout << "\n=== ObjectNode for " << associatedMeshName << " ===" << std::endl;
-            std::cout << "Position: " << position.transpose() << std::endl;
-            std::cout << "Rotation (axis, angle): " << rotation.transpose() << std::endl;
-            std::cout << "Scale: " << scale.transpose() << std::endl;
-            std::cout << "Pivot: " << pivot.transpose() << std::endl;
-        }
-        
         // Scale
         Eigen::Matrix4f scaleMatrix = Eigen::Matrix4f::Identity();
         scaleMatrix(0, 0) = scale.x();
@@ -180,26 +172,6 @@ namespace Debugger3DS {
         }
         
         return keys[0].value;
-    }
-
-    template<>
-    uint32_t AnimationTrack<Eigen::Vector3f>::GetDuration() const {
-        return keys.empty() ? 0 : keys.back().frame - keys[0].frame;
-    }
-
-    template<>
-    uint32_t AnimationTrack<Eigen::Vector4f>::GetDuration() const {
-        return keys.empty() ? 0 : keys.back().frame - keys[0].frame;
-    }
-
-    template<>
-    uint32_t AnimationTrack<bool>::GetDuration() const {
-        return keys.empty() ? 0 : keys.back().frame - keys[0].frame;
-    }
-
-    template<>
-    uint32_t AnimationTrack<std::string>::GetDuration() const {
-        return keys.empty() ? 0 : keys.back().frame - keys[0].frame;
     }
 
 } // namespace Debugger3DS

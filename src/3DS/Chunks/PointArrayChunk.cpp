@@ -6,7 +6,7 @@ namespace Debugger3DS {
     
     bool PointArrayChunk::ReadData(Importer& importer) {
         uint16_t count;
-        if (!ReadUShort(count)) {
+        if (!Read(count)) {
             return false;
         }
         
@@ -20,9 +20,9 @@ namespace Debugger3DS {
         targetMesh_->vertices.reserve(count);
         for (uint16_t i = 0; i < count; ++i) {
             Eigen::Vector3f vertex;
-            if (!ReadFloat(vertex.x()) || 
-                !ReadFloat(vertex.y()) || 
-                !ReadFloat(vertex.z())) {
+            if (!Read(vertex.x()) || 
+                !Read(vertex.y()) || 
+                !Read(vertex.z())) {
                 return false;
             }
             targetMesh_->vertices.push_back(vertex);

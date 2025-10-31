@@ -6,10 +6,10 @@ namespace Debugger3DS {
 
     bool NodeHdrChunk::ReadData(Importer& importer) {
         // Read node header data
-        if (!ReadString(name_)) {
+        if (!Read(name_)) {
             return false;
         }
-        if (!ReadUShort(flags1_) || !ReadUShort(flags2_) || !ReadUShort(parentIndex_)) {
+        if (!Read(flags1_) || !Read(flags2_) || !Read(parentIndex_)) {
             return false;
         }
 

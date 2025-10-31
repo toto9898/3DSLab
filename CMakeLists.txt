@@ -39,17 +39,13 @@ set(SRC_FILES
     src/3DS/Scene.cpp
     src/3DS/SceneObjects/Mesh.cpp
     src/3DS/Chunks/Chunk.cpp
-    src/3DS/Chunks/IO/FileIO.cpp
     src/3DS/Chunks/ChunkRegistration.cpp
     src/3DS/Chunks/Color24Chunk.cpp
     src/3DS/Chunks/ColorFChunk.cpp
     src/3DS/Chunks/FaceArrayChunk.cpp
     src/3DS/Chunks/M3dVersionChunk.cpp
     src/3DS/Chunks/MasterScaleChunk.cpp
-    src/3DS/Chunks/MatNameChunk.cpp
-    src/3DS/Chunks/MatShininessChunk.cpp
-    src/3DS/Chunks/MatTransparencyChunk.cpp
-    src/3DS/Chunks/MatPropertiesChunk.cpp
+    src/3DS/Chunks/MaterialChunks.cpp
     src/3DS/Chunks/PercentageChunk.cpp
     src/3DS/Chunks/MeshMatrixChunk.cpp
     src/3DS/Chunks/MeshVersionChunk.cpp

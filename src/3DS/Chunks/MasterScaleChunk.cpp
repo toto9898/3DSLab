@@ -5,7 +5,7 @@
 namespace Debugger3DS {
     
     bool MasterScaleChunk::ReadData(Importer& importer) {        
-        if (!ReadFloat(scale_)) {
+        if (!Read(scale_)) {
             return false;
         }
         logging::log << "Master Scale: " << scale_ << std::endl;

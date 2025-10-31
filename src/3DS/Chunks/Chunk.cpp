@@ -67,7 +67,8 @@ namespace Debugger3DS {
     std::shared_ptr<Chunk> Chunk::CreateChunk(std::istream& stream, Importer& importer) {
         std::streampos  chunkStart = stream.tellg();
         ChunkHeader     header_;
-        if (!ReadHeader(stream, header_)) {
+        if (!Read(header_.id, stream) ||
+            !Read(header_.length, stream)) {
             return nullptr;
         }
 
@@ -75,7 +76,17 @@ namespace Debugger3DS {
         
         return chunk;
     }
-    
+
+    bool Chunk::Read(std::string &value)
+    {
+        value.clear();
+        char c;
+        while (stream_.read(&c, 1) && c != '\0') {
+            value += c;
+        }
+        return stream_.good() && stream_.tellg() <= dataEndPos_;
+    }
+
     uint16_t Chunk::GetId() const {
         return header_.id;
     }

@@ -5,7 +5,7 @@
 namespace Debugger3DS {
     
     bool MeshVersionChunk::ReadData(Importer& importer) {
-        if (!ReadULong(version_)) {
+        if (!Read(version_)) {
             return false;
         }
         logging::log << "Mesh Version: " << version_ << std::endl;

@@ -7,7 +7,7 @@ namespace Debugger3DS {
     bool MshMatGroupChunk::ReadData(Importer& importer) {
         // Read material name (but use current material instead of searching)
         std::string materialName;
-        if (!ReadString(materialName)) {
+        if (!Read(materialName)) {
             return false;
         }
         
@@ -21,7 +21,7 @@ namespace Debugger3DS {
         
         // Read number of faces
         uint16_t faceCount;
-        if (!ReadUShort(faceCount)) {
+        if (!Read(faceCount)) {
             return false;
         }
         
@@ -30,7 +30,7 @@ namespace Debugger3DS {
         faceIndices.reserve(faceCount);
         for (uint16_t i = 0; i < faceCount; ++i) {
             uint16_t faceIndex;
-            if (!ReadUShort(faceIndex)) {
+            if (!Read(faceIndex)) {
                 return false;
             }
             faceIndices.push_back(faceIndex);

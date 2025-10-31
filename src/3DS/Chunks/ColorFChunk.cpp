@@ -12,9 +12,9 @@ namespace Debugger3DS {
         }
         
         // Read RGB directly into material diffuse color
-        if (!ReadFloat(targetMaterial_->diffuse.x()) ||
-            !ReadFloat(targetMaterial_->diffuse.y()) ||
-            !ReadFloat(targetMaterial_->diffuse.z())) {
+        if (!Read(targetMaterial_->diffuse.x()) ||
+            !Read(targetMaterial_->diffuse.y()) ||
+            !Read(targetMaterial_->diffuse.z())) {
             return false;
         }
         

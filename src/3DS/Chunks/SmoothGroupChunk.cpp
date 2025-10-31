@@ -24,7 +24,7 @@ namespace Debugger3DS {
         smoothingGroups_.resize(faceCount);
         
         for (size_t i = 0; i < faceCount; ++i) {
-            if (!ReadULong(smoothingGroups_[i])) {
+            if (!Read(smoothingGroups_[i])) {
                 logging::log << "Error: Failed to read smoothing group " << i << std::endl;
                 return false;
             }

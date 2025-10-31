@@ -5,7 +5,7 @@
 namespace Debugger3DS {
     
     bool NamedObjectChunk::ReadData(Importer& importer) {        
-        if (!ReadString(name_)) {
+        if (!Read(name_)) {
             return false;
         }
         importer.SetCurrentObjectName(name_);

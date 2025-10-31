@@ -7,7 +7,7 @@ namespace Debugger3DS {
     
     bool M3dVersionChunk::ReadData(Importer& importer) {
         
-        if (!ReadULong(version_)) {
+        if (!Read(version_)) {
             return false;
         }
         logging::log << "3DS File Version: " << version_ << std::endl;

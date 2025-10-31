@@ -13,7 +13,7 @@ namespace Debugger3DS {
         
         // Read RGB directly into material diffuse color
         uint8_t r, g, b;
-        if (!ReadUByte(r) || !ReadUByte(g) || !ReadUByte(b)) {
+        if (!Read(r) || !Read(g) || !Read(b)) {
             return false;
         }
         

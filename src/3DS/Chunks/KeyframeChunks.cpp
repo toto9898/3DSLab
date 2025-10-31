@@ -6,17 +6,17 @@ namespace Debugger3DS {
 
     bool KfHdrChunk::ReadData(Importer& importer) {
         // Read revision
-        if (!ReadUShort(revision_)) {
+        if (!Read(revision_)) {
             return false;
         }
         
         // Read filename (null-terminated string)
-        if (!ReadString(filename_)) {
+        if (!Read(filename_)) {
             return false;
         }
         
         // Read animation length
-        if (!ReadULong(animLength_)) {
+        if (!Read(animLength_)) {
             return false;
         }
         
@@ -35,12 +35,12 @@ namespace Debugger3DS {
 
     bool KfSegChunk::ReadData(Importer& importer) {
         // Read start frame
-        if (!ReadULong(start_)) {
+        if (!Read(start_)) {
             return false;
         }
         
         // Read end frame
-        if (!ReadULong(end_)) {
+        if (!Read(end_)) {
             return false;
         }
         
@@ -57,7 +57,7 @@ namespace Debugger3DS {
 
     bool KfCurTimeChunk::ReadData(Importer& importer) {
         // Read current frame
-        if (!ReadULong(currentFrame_)) {
+        if (!Read(currentFrame_)) {
             return false;
         }
         

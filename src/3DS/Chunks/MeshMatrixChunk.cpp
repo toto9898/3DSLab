@@ -16,7 +16,7 @@ namespace Debugger3DS {
         for (int col = 0; col < 4; ++col) {  // Read columns (X, Y, Z axes + position)
             for (int row = 0; row < 3; ++row) {  // Each column has 3 components
                 float value;
-                if (!ReadFloat(value)) {
+                if (!Read(value)) {
                     return false;
                 }
                 meshMatrix(row, col) = value;
@@ -28,10 +28,6 @@ namespace Debugger3DS {
         meshMatrix(3, 2) = 0.0f;
         meshMatrix(3, 3) = 1.0f;
         
-        if (targetMesh_->name == "Arch27_012" || targetMesh_->name == "Arch27_014" || targetMesh_->name == "Arch27_015"){
-            std::cout << "Mesh Matrix for " << targetMesh_->name << ":\n" << meshMatrix << std::endl;
-        }
-
         // Check if matrix is invertible before applying inverse
         float determinant = meshMatrix.determinant();
         

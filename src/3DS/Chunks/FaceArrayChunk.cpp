@@ -7,7 +7,7 @@ namespace Debugger3DS {
     bool FaceArrayChunk::ReadData(Importer& importer) {
         
         uint16_t count;
-        if (!ReadUShort(count)) {
+        if (!Read(count)) {
             return false;
         }
         
@@ -21,10 +21,10 @@ namespace Debugger3DS {
         targetMesh_->faces.reserve(count);
         for (uint16_t i = 0; i < count; ++i) {
             Face face;
-            if (!ReadUShort(face.a) ||
-                !ReadUShort(face.b) ||
-                !ReadUShort(face.c) ||
-                !ReadUShort(face.flags)) {
+            if (!Read(face.a) ||
+                !Read(face.b) ||
+                !Read(face.c) ||
+                !Read(face.flags)) {
                 return false;
             }
             targetMesh_->faces.push_back(face);
