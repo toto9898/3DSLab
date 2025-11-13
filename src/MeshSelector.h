@@ -3,6 +3,8 @@
 #include <igl/opengl/glfw/Viewer.h>
 #include <vector>
 #include <functional>
+#include <memory>
+#include "3DS/SceneObjects/ObjectNode.h"
 
 namespace Debugger3DS {
 
@@ -22,11 +24,11 @@ class MeshSelector {
 public:
     MeshSelector(igl::opengl::glfw::Viewer& viewer);
     
-    // Add a mesh with its data_id and optional bounding box
-    void AddMesh(int dataId, const std::string& name = "", const AABB& bbox = AABB());
+    // Add a mesh with its data_id, object node pointer, and optional bounding box
+    void AddMesh(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name = "", const AABB& bbox = AABB());
     
     // Add a mesh with automatic bounding box computation from transformation
-    void AddMeshWithTransform(int dataId, const std::string& name, 
+    void AddMeshWithTransform(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name, 
                                const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                const Eigen::Matrix4f& transform);
     
@@ -36,14 +38,14 @@ public:
     // Disable selection
     void DisableSelection();
     
-    // Get currently selected mesh data_id (-1 if none)
-    int GetSelectedMesh() const { return selectedMeshId_; }
+    // Get currently selected object node (nullptr if none)
+    std::shared_ptr<ObjectNode> GetSelectedObjectNode() const { return selectedObjectNode_; }
     
     // Get mesh name by index
     std::string GetMeshName(int index) const;
     
     // Set callback for when selection changes
-    void SetSelectionCallback(std::function<void(int)> callback);
+    void SetSelectionCallback(std::function<void(std::shared_ptr<ObjectNode>)> callback);
     
     // Highlight the selected mesh
     void HighlightSelected();
@@ -54,12 +56,14 @@ public:
 private:
     igl::opengl::glfw::Viewer& viewer_;
     std::vector<int> meshIds_;
+    std::vector<std::shared_ptr<ObjectNode>> objectNodes_;
     std::vector<std::string> meshNames_;
     std::vector<AABB> meshBBoxes_;
+    std::shared_ptr<ObjectNode> selectedObjectNode_;
     int selectedMeshId_;
     int currentIndex_;
     
-    std::function<void(int)> selectionCallback_;
+    std::function<void(std::shared_ptr<ObjectNode>)> selectionCallback_;
     
     // Original colors for restoring
     std::map<int, Eigen::MatrixXd> originalColors_;

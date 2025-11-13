@@ -33,6 +33,18 @@
             ],
             "preLaunchTask": "build-debug",
             "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "Release 3DS Viewer (MSVC)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/example.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "build-release"
         }
     ]
 }

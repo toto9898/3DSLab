@@ -36,12 +36,13 @@ bool AABB::IntersectsRay(const Eigen::Vector3d& origin, const Eigen::Vector3d& d
 }
 
 MeshSelector::MeshSelector(igl::opengl::glfw::Viewer& viewer)
-    : viewer_(viewer), selectedMeshId_(-1), currentIndex_(-1), 
+    : viewer_(viewer), selectedObjectNode_(nullptr), selectedMeshId_(-1), currentIndex_(-1), 
       isDragging_(false), mouseDownX_(0), mouseDownY_(0) {
 }
 
-void MeshSelector::AddMesh(int dataId, const std::string& name, const AABB& bbox) {
+void MeshSelector::AddMesh(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name, const AABB& bbox) {
     meshIds_.push_back(dataId);
+    objectNodes_.push_back(objectNode);
     meshNames_.push_back(name.empty() ? "Mesh " + std::to_string(dataId) : name);
     meshBBoxes_.push_back(bbox);
     
@@ -49,7 +50,7 @@ void MeshSelector::AddMesh(int dataId, const std::string& name, const AABB& bbox
     originalColors_[dataId] = viewer_.data(dataId).V_material_ambient;
 }
 
-void MeshSelector::AddMeshWithTransform(int dataId, const std::string& name,
+void MeshSelector::AddMeshWithTransform(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name,
                                          const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                          const Eigen::Matrix4f& transform) {
     // Transform the 8 corners of the bounding box
@@ -82,7 +83,7 @@ void MeshSelector::AddMeshWithTransform(int dataId, const std::string& name,
     }
     
     AABB bbox(transformedMin, transformedMax);
-    AddMesh(dataId, name, bbox);
+    AddMesh(dataId, objectNode, name, bbox);
 }
 
 std::string MeshSelector::GetMeshName(int index) const {
@@ -105,12 +106,13 @@ void MeshSelector::SelectMesh(int dataId) {
         } else {
             currentIndex_ = index;
             selectedMeshId_ = dataId;
+            selectedObjectNode_ = objectNodes_[index];
             std::cout << "Selected: " << meshNames_[currentIndex_] 
                       << " (ID: " << selectedMeshId_ << ")" << std::endl;
             HighlightSelected();
             
             if (selectionCallback_) {
-                selectionCallback_(selectedMeshId_);
+                selectionCallback_(selectedObjectNode_);
             }
         }
     }
@@ -143,7 +145,7 @@ void MeshSelector::DisableSelection() {
     viewer_.callback_mouse_move = nullptr;
 }
 
-void MeshSelector::SetSelectionCallback(std::function<void(int)> callback) {
+void MeshSelector::SetSelectionCallback(std::function<void(std::shared_ptr<ObjectNode>)> callback) {
     selectionCallback_ = callback;
 }
 
@@ -172,6 +174,7 @@ void MeshSelector::ClearSelection() {
         }
     }
     
+    selectedObjectNode_ = nullptr;
     selectedMeshId_ = -1;
     currentIndex_ = -1;
 }
@@ -183,6 +186,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         
         currentIndex_ = (currentIndex_ + 1) % meshIds_.size();
         selectedMeshId_ = meshIds_[currentIndex_];
+        selectedObjectNode_ = objectNodes_[currentIndex_];
         
         std::cout << "Selected: " << meshNames_[currentIndex_] 
                   << " (ID: " << selectedMeshId_ << ")" << std::endl;
@@ -190,7 +194,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         HighlightSelected();
         
         if (selectionCallback_) {
-            selectionCallback_(selectedMeshId_);
+            selectionCallback_(selectedObjectNode_);
         }
         
         return true;
@@ -202,6 +206,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         
         currentIndex_ = (currentIndex_ - 1 + meshIds_.size()) % meshIds_.size();
         selectedMeshId_ = meshIds_[currentIndex_];
+        selectedObjectNode_ = objectNodes_[currentIndex_];
         
         std::cout << "Selected: " << meshNames_[currentIndex_] 
                   << " (ID: " << selectedMeshId_ << ")" << std::endl;
@@ -209,7 +214,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         HighlightSelected();
         
         if (selectionCallback_) {
-            selectionCallback_(selectedMeshId_);
+            selectionCallback_(selectedObjectNode_);
         }
         
         return true;

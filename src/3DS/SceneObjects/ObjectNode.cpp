@@ -32,15 +32,20 @@ namespace Debugger3DS {
         Eigen::Matrix4f translationMatrix = Eigen::Matrix4f::Identity();
         translationMatrix.block<3, 1>(0, 3) = position;
         
-        // Correct transformation order: T * R * S * (-Pivot)
-        // This rotates and scales around the pivot point, then translates to final position
+        Eigen::Matrix4f meshMatrix = Eigen::Matrix4f::Identity();
+        if (associatedMesh) {
+            meshMatrix = associatedMesh->meshMatrix;
+        }
+
+        Eigen::Matrix4f keyframeMatrix = translationMatrix * rotationMatrix * scaleMatrix;
+
         if (!pivot.isZero()) {
             Eigen::Matrix4f negativePivotMatrix = Eigen::Matrix4f::Identity();
             negativePivotMatrix.block<3, 1>(0, 3) = -pivot;
-            return translationMatrix * rotationMatrix * scaleMatrix * negativePivotMatrix;
+            keyframeMatrix *= negativePivotMatrix;
         }
         
-        return translationMatrix * rotationMatrix * scaleMatrix;
+        return keyframeMatrix * meshMatrix.inverse();
     }
 
     std::string ObjectNode::GetEffectiveName() const {

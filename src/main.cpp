@@ -36,6 +36,11 @@ int main(int argc, char *argv[])
     // Setup mesh selector
     Debugger3DS::MeshSelector selector(viewer);
 
+    // Determine if we're rendering via object nodes or direct meshes
+    bool hasValidAssociations = std::ranges::any_of(scene.objectNodes, 
+        [](const auto& node) { return node->associatedMesh != nullptr; });
+    bool usingObjectNodes = !scene.objectNodes.empty() && hasValidAssociations;
+
     // Add each mesh as a separate object
     for (size_t i = 0; i < meshData.size(); ++i) {
         const auto& [V, F] = meshData[i];
@@ -44,19 +49,21 @@ int main(int argc, char *argv[])
         viewer.data(data_id).set_mesh(V, F);
         viewer.data(data_id).set_face_based(true);
         
-        // Add mesh to selector with name from ObjectNode if available
-        std::string meshName = "Mesh " + std::to_string(i);
+        // Add mesh to selector
+        std::shared_ptr<Debugger3DS::ObjectNode> objectNodePtr = nullptr;
+        std::string meshName;
         
-        if (i < scene.objectNodes.size() && scene.objectNodes[i]->associatedMesh) {
-            meshName = scene.objectNodes[i]->associatedMesh->name;
-            auto& node = scene.objectNodes[i];
-            Eigen::Matrix4f nodeTransform = node->GetTransformAtFrame(static_cast<float>(scene.currentFrame));
+        if (usingObjectNodes) {
+            objectNodePtr = scene.objectNodes[i];
+            meshName = objectNodePtr->associatedMesh->name;
+            Eigen::Matrix4f nodeTransform = objectNodePtr->GetTransformAtFrame(static_cast<float>(scene.currentFrame));
             
-            selector.AddMeshWithTransform(data_id, meshName, 
-                                        node->boundingBox.min, node->boundingBox.max,
+            selector.AddMeshWithTransform(data_id, objectNodePtr, meshName, 
+                                        objectNodePtr->boundingBox.min, objectNodePtr->boundingBox.max,
                                         nodeTransform);
         } else {
-            selector.AddMesh(data_id, meshName);
+            meshName = scene.meshes[i]->name;
+            selector.AddMesh(data_id, objectNodePtr, meshName);
         }
         
         // Give each mesh a different color for easy identification
@@ -69,8 +76,51 @@ int main(int argc, char *argv[])
 
     // Enable mesh selection (use N/P keys to cycle, C to clear)
     selector.EnableSelection();
-    selector.SetSelectionCallback([](int meshId) {
-        std::cout << "Mesh selected with ID: " << meshId << std::endl;
+    selector.SetSelectionCallback([&scene](std::shared_ptr<Debugger3DS::ObjectNode> objectNode) {
+        if (objectNode) {
+            std::cout << "\n=== ObjectNode selected: " << objectNode->GetEffectiveName() << " ===" << std::endl;
+            if (objectNode->associatedMesh) {
+                std::cout << "Associated mesh: " << objectNode->associatedMesh->name << std::endl;
+            }
+            
+            // Print pivot
+            std::cout << "\nPivot: [" << objectNode->pivot.x() << ", " 
+                      << objectNode->pivot.y() << ", " << objectNode->pivot.z() << "]" << std::endl;
+            
+            // Get transformation matrix at current frame
+            uint32_t frame = scene.currentFrame;
+            Eigen::Matrix4f transform = objectNode->GetTransformAtFrame(frame);
+            
+            std::cout << "\nTransformation Matrix (frame " << frame << "):" << std::endl;
+            std::cout << transform << std::endl;
+            
+            // Print mesh matrix if available
+            if (objectNode->associatedMesh) {
+                std::cout << "\nMesh Matrix:" << std::endl;
+                std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
+            }
+            
+            // Print individual transformation components
+            if (objectNode->positionTrack.HasKeys()) {
+                Eigen::Vector3f pos = objectNode->positionTrack.GetValueAtFrame(frame);
+                std::cout << "\nPosition Track (frame " << frame << "): [" 
+                          << pos.x() << ", " << pos.y() << ", " << pos.z() << "]" << std::endl;
+            }
+            
+            if (objectNode->rotationTrack.HasKeys()) {
+                Eigen::Vector4f rot = objectNode->rotationTrack.GetValueAtFrame(frame);
+                std::cout << "Rotation Track (frame " << frame << "): angle=" << rot.w() 
+                          << ", axis=[" << rot.x() << ", " << rot.y() << ", " << rot.z() << "]" << std::endl;
+            }
+            
+            if (objectNode->scaleTrack.HasKeys()) {
+                Eigen::Vector3f scale = objectNode->scaleTrack.GetValueAtFrame(frame);
+                std::cout << "Scale Track (frame " << frame << "): [" 
+                          << scale.x() << ", " << scale.y() << ", " << scale.z() << "]" << std::endl;
+            }
+        } else {
+            std::cout << "\nNo object selected" << std::endl;
+        }
     });
 
     // Draw coordinate axes

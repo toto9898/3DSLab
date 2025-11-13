@@ -32,3 +32,6 @@
 *.swp
 
 build/*
+
+# temp files
+*.zip

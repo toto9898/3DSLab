@@ -25,7 +25,9 @@ namespace Debugger3DS {
         std::vector<Face> faces;
         std::vector<Eigen::Vector2f> texCoords;
         std::vector<uint32_t> smoothingGroups;
-        
+        Eigen::Matrix4f meshMatrix = Eigen::Matrix4f::Identity();
+
+
         // Material assignments with shared pointers
         std::map<std::shared_ptr<Material>, std::vector<uint16_t>> materialGroups;
 
