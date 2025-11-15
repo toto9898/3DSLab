@@ -37,6 +37,8 @@ namespace Debugger3DS {
             return false;
         }
         
+        scene_.BuildObjectNodeHierarchy();
+
         logging::log << "Successfully loaded 3DS file" << std::endl;
         scene_.PrintInfo();
         

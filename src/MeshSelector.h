@@ -25,10 +25,10 @@ public:
     MeshSelector(igl::opengl::glfw::Viewer& viewer);
     
     // Add a mesh with its data_id, object node pointer, and optional bounding box
-    void AddMesh(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name = "", const AABB& bbox = AABB());
+    void AddMesh(int dataId, ObjectNodePtr objectNode, const std::string& name = "", const AABB& bbox = AABB());
     
     // Add a mesh with automatic bounding box computation from transformation
-    void AddMeshWithTransform(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name, 
+    void AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, const std::string& name, 
                                const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                const Eigen::Matrix4f& transform);
     
@@ -39,13 +39,13 @@ public:
     void DisableSelection();
     
     // Get currently selected object node (nullptr if none)
-    std::shared_ptr<ObjectNode> GetSelectedObjectNode() const { return selectedObjectNode_; }
+    ObjectNodePtr GetSelectedObjectNode() const { return selectedObjectNode_; }
     
     // Get mesh name by index
     std::string GetMeshName(int index) const;
     
     // Set callback for when selection changes
-    void SetSelectionCallback(std::function<void(std::shared_ptr<ObjectNode>)> callback);
+    void SetSelectionCallback(std::function<void(ObjectNodePtr)> callback);
     
     // Highlight the selected mesh
     void HighlightSelected();
@@ -56,14 +56,14 @@ public:
 private:
     igl::opengl::glfw::Viewer& viewer_;
     std::vector<int> meshIds_;
-    std::vector<std::shared_ptr<ObjectNode>> objectNodes_;
+    std::vector<ObjectNodePtr> objectNodes_;
     std::vector<std::string> meshNames_;
     std::vector<AABB> meshBBoxes_;
-    std::shared_ptr<ObjectNode> selectedObjectNode_;
+    ObjectNodePtr selectedObjectNode_;
     int selectedMeshId_;
     int currentIndex_;
     
-    std::function<void(std::shared_ptr<ObjectNode>)> selectionCallback_;
+    std::function<void(ObjectNodePtr)> selectionCallback_;
     
     // Original colors for restoring
     std::map<int, Eigen::MatrixXd> originalColors_;

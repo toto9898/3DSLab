@@ -5,7 +5,7 @@
 #include <ranges>
 #include "Logger.h"
 
-//constexpr auto kMeshFilePath = "D:\\Programming\\3DS_Viewer\\corrupted mesh.3ds";
+//constexpr auto kMeshFilePath = "D:\\Programming\\3DSLab\\src\\3DS\\Samples\\LC_ChipmunkStudio_011922a2.3ds";
 constexpr auto kMeshFilePath = "D:\\Programming\\3DSLab\\src\\3DS\\Samples\\55.3ds";
 
 static void GetMeshesToRender(const Debugger3DS::Scene& scene, std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXi>>& meshData);
@@ -43,6 +43,10 @@ int main(int argc, char *argv[])
 
     // Add each mesh as a separate object
     for (size_t i = 0; i < meshData.size(); ++i) {
+        std::string meshName = usingObjectNodes ? scene.objectNodes[i]->associatedMeshName : scene.meshes[i]->name;
+        if (meshName == "$$$DUMMY")
+            continue;
+
         const auto& [V, F] = meshData[i];
         
         int data_id = (i == 0) ? viewer.data().id : viewer.append_mesh();
@@ -50,20 +54,16 @@ int main(int argc, char *argv[])
         viewer.data(data_id).set_face_based(true);
         
         // Add mesh to selector
-        std::shared_ptr<Debugger3DS::ObjectNode> objectNodePtr = nullptr;
-        std::string meshName;
         
         if (usingObjectNodes) {
-            objectNodePtr = scene.objectNodes[i];
-            meshName = objectNodePtr->associatedMesh->name;
-            Eigen::Matrix4f nodeTransform = objectNodePtr->GetTransformAtFrame(static_cast<float>(scene.currentFrame));
+            auto objectNodePtr = scene.objectNodes[i];
+            auto nodeTransform = scene.GetNodeGlobalTransform(objectNodePtr);
             
             selector.AddMeshWithTransform(data_id, objectNodePtr, meshName, 
                                         objectNodePtr->boundingBox.min, objectNodePtr->boundingBox.max,
                                         nodeTransform);
         } else {
-            meshName = scene.meshes[i]->name;
-            selector.AddMesh(data_id, objectNodePtr, meshName);
+            selector.AddMesh(data_id, nullptr, meshName);
         }
         
         // Give each mesh a different color for easy identification
@@ -78,45 +78,12 @@ int main(int argc, char *argv[])
     selector.EnableSelection();
     selector.SetSelectionCallback([&scene](std::shared_ptr<Debugger3DS::ObjectNode> objectNode) {
         if (objectNode) {
-            std::cout << "\n=== ObjectNode selected: " << objectNode->GetEffectiveName() << " ===" << std::endl;
-            if (objectNode->associatedMesh) {
-                std::cout << "Associated mesh: " << objectNode->associatedMesh->name << std::endl;
-            }
-            
-            // Print pivot
-            std::cout << "\nPivot: [" << objectNode->pivot.x() << ", " 
-                      << objectNode->pivot.y() << ", " << objectNode->pivot.z() << "]" << std::endl;
-            
-            // Get transformation matrix at current frame
-            uint32_t frame = scene.currentFrame;
-            Eigen::Matrix4f transform = objectNode->GetTransformAtFrame(frame);
-            
-            std::cout << "\nTransformation Matrix (frame " << frame << "):" << std::endl;
-            std::cout << transform << std::endl;
+            std::cout << objectNode->PrintInfo(scene.currentFrame);
             
             // Print mesh matrix if available
             if (objectNode->associatedMesh) {
                 std::cout << "\nMesh Matrix:" << std::endl;
                 std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
-            }
-            
-            // Print individual transformation components
-            if (objectNode->positionTrack.HasKeys()) {
-                Eigen::Vector3f pos = objectNode->positionTrack.GetValueAtFrame(frame);
-                std::cout << "\nPosition Track (frame " << frame << "): [" 
-                          << pos.x() << ", " << pos.y() << ", " << pos.z() << "]" << std::endl;
-            }
-            
-            if (objectNode->rotationTrack.HasKeys()) {
-                Eigen::Vector4f rot = objectNode->rotationTrack.GetValueAtFrame(frame);
-                std::cout << "Rotation Track (frame " << frame << "): angle=" << rot.w() 
-                          << ", axis=[" << rot.x() << ", " << rot.y() << ", " << rot.z() << "]" << std::endl;
-            }
-            
-            if (objectNode->scaleTrack.HasKeys()) {
-                Eigen::Vector3f scale = objectNode->scaleTrack.GetValueAtFrame(frame);
-                std::cout << "Scale Track (frame " << frame << "): [" 
-                          << scale.x() << ", " << scale.y() << ", " << scale.z() << "]" << std::endl;
             }
         } else {
             std::cout << "\nNo object selected" << std::endl;
@@ -179,7 +146,7 @@ static void GetMeshesToRender(const Debugger3DS::Scene& scene, std::vector<std::
             if (node->associatedMesh) {                
                 Eigen::MatrixXd V;
                 Eigen::MatrixXi F;
-                Eigen::Matrix4f nodeTransform = node->GetTransformAtFrame(static_cast<float>(scene.currentFrame));
+                Eigen::Matrix4f nodeTransform = scene.GetNodeGlobalTransform(node);
 
                 node->associatedMesh->ApplyTransform(nodeTransform);
                 node->associatedMesh->ToEigenMatrices(V, F);                

@@ -54,12 +54,17 @@ namespace Debugger3DS {
         uint32_t GetDuration() const;
     };
 
+    // Forward declaration for smart pointer type
+    struct ObjectNode;
+    using ObjectNodePtr = std::shared_ptr<ObjectNode>;
+
     // Object node representing one animated object instance
     struct ObjectNode {
         // Node identification
         uint16_t nodeId = 0;              // NODE_ID
         std::string associatedMeshName;   // From NODE_HDR - name of the NAMED_OBJECT mesh
-        uint16_t parentIndex = 0xFFFF;    // From NODE_HDR - parent node index (0xFFFF = no parent)
+        uint16_t parentId = 0xFFFF;    // From NODE_HDR - parent node index (0xFFFF = no parent)
+        ObjectNodePtr parentNode = nullptr; // Resolved parent node pointer
         uint16_t nodeFlags = 0;           // From NODE_HDR
         
         // Instance information
@@ -95,7 +100,7 @@ namespace Debugger3DS {
         Eigen::Matrix4f ApplyPivot(const Eigen::Matrix4f& transform) const;
         
         // Check if this node has a parent
-        bool HasParent() const { return parentIndex != 0xFFFF; }
+        bool HasParent() const { return parentId != 0xFFFF; }
         
         // Print node information for debugging
         std::string PrintInfo(uint32_t frame) const;

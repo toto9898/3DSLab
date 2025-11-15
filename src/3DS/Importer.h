@@ -70,8 +70,8 @@ namespace Debugger3DS {
         void SetCurrentMaterialName(const std::string& name) { currentMaterialName_ = name; }
         
         // ObjectNode accessor
-        std::shared_ptr<ObjectNode> GetCurrentObjectNode() const { return currentObjectNode_; }
-        void SetCurrentObjectNode(std::shared_ptr<ObjectNode> node) { currentObjectNode_ = node; }
+        ObjectNodePtr GetCurrentObjectNode() const { return currentObjectNode_; }
+        void SetCurrentObjectNode(ObjectNodePtr node) { currentObjectNode_ = node; }
         
         Scene scene_;
         
@@ -86,7 +86,7 @@ namespace Debugger3DS {
         std::shared_ptr<Material> currentMaterial_ = nullptr;
         
         // Current object node being processed
-        std::shared_ptr<ObjectNode> currentObjectNode_ = nullptr;
+        ObjectNodePtr currentObjectNode_ = nullptr;
         
         // Error handling
         bool hasError_ = false;

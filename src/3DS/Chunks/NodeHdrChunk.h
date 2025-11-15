@@ -25,7 +25,7 @@ namespace Debugger3DS {
         std::string name_;
         uint16_t flags1_ = 0;
         uint16_t flags2_ = 0;
-        uint16_t parentIndex_ = 0;
+        uint16_t parentId_ = 0;
         std::shared_ptr<NamedObject> targetObject_ = nullptr;  // Reference to scene object
     };
     

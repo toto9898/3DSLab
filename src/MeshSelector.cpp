@@ -2,6 +2,7 @@
 #include <igl/unproject_onto_mesh.h>
 #include <igl/unproject.h>
 #include <iostream>
+#include "3DS/SceneObjects/Mesh.h"
 
 namespace Debugger3DS {
 
@@ -38,9 +39,24 @@ bool AABB::IntersectsRay(const Eigen::Vector3d& origin, const Eigen::Vector3d& d
 MeshSelector::MeshSelector(igl::opengl::glfw::Viewer& viewer)
     : viewer_(viewer), selectedObjectNode_(nullptr), selectedMeshId_(-1), currentIndex_(-1), 
       isDragging_(false), mouseDownX_(0), mouseDownY_(0) {
+    
+    // default selection callback prints ObjectNode info at frame 0
+    selectionCallback_ = [](std::shared_ptr<Debugger3DS::ObjectNode> objectNode) {
+        if (objectNode) {
+            std::cout << objectNode->PrintInfo(0);
+
+            // Print mesh matrix if available
+            if (objectNode->associatedMesh) {
+                std::cout << "\nMesh Matrix:" << std::endl;
+                std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
+            }
+        } else {
+            std::cout << "\nNo object selected" << std::endl;
+        }
+    };
 }
 
-void MeshSelector::AddMesh(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name, const AABB& bbox) {
+void MeshSelector::AddMesh(int dataId, ObjectNodePtr objectNode, const std::string& name, const AABB& bbox) {
     meshIds_.push_back(dataId);
     objectNodes_.push_back(objectNode);
     meshNames_.push_back(name.empty() ? "Mesh " + std::to_string(dataId) : name);
@@ -50,7 +66,7 @@ void MeshSelector::AddMesh(int dataId, std::shared_ptr<ObjectNode> objectNode, c
     originalColors_[dataId] = viewer_.data(dataId).V_material_ambient;
 }
 
-void MeshSelector::AddMeshWithTransform(int dataId, std::shared_ptr<ObjectNode> objectNode, const std::string& name,
+void MeshSelector::AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, const std::string& name,
                                          const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                          const Eigen::Matrix4f& transform) {
     // Transform the 8 corners of the bounding box
@@ -145,7 +161,7 @@ void MeshSelector::DisableSelection() {
     viewer_.callback_mouse_move = nullptr;
 }
 
-void MeshSelector::SetSelectionCallback(std::function<void(std::shared_ptr<ObjectNode>)> callback) {
+void MeshSelector::SetSelectionCallback(std::function<void(ObjectNodePtr)> callback) {
     selectionCallback_ = callback;
 }
 

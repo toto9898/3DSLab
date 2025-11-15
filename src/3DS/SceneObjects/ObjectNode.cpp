@@ -72,7 +72,7 @@ namespace Debugger3DS {
             oss << "    Instance Name: " << instanceName << std::endl;
         }
         oss << "    Node ID: " << nodeId << std::endl;
-        oss << "    Parent Index: " << (HasParent() ? std::to_string(parentIndex) : "None") << std::endl;
+        oss << "    Parent Index: " << (HasParent() ? std::to_string(parentId) : "None") << std::endl;
         oss << "    Pivot: (" << pivot.x() << ", " << pivot.y() << ", " << pivot.z() << ")" << std::endl;
         oss << "    Frame: " << frame << std::endl;
         

@@ -9,17 +9,17 @@ namespace Debugger3DS {
         if (!Read(name_)) {
             return false;
         }
-        if (!Read(flags1_) || !Read(flags2_) || !Read(parentIndex_)) {
+        if (!Read(flags1_) || !Read(flags2_) || !Read(parentId_)) {
             return false;
         }
 
         if (auto currentObjectNode = importer.GetCurrentObjectNode()) {
             currentObjectNode->associatedMeshName = name_;
-            currentObjectNode->parentIndex = parentIndex_;
+            currentObjectNode->parentId = parentId_;
             currentObjectNode->nodeFlags = flags1_;
         }
 
-        logging::log << "Node Header: Name=" << name_ << " Flags1=" << flags1_ << " Flags2=" << flags2_ << " ParentIndex=" << parentIndex_ << std::endl;
+        logging::log << "Node Header: Name=" << name_ << " Flags1=" << flags1_ << " Flags2=" << flags2_ << " ParentIndex=" << parentId_ << std::endl;
         return true;
     }
 
@@ -36,7 +36,7 @@ namespace Debugger3DS {
     }
 
     uint16_t NodeHdrChunk::GetParentIndex() const {
-        return parentIndex_;
+        return parentId_;
     }
 
 } // namespace Debugger3DS

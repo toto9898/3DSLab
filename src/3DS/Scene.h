@@ -34,12 +34,15 @@ namespace Debugger3DS {
         std::vector<std::shared_ptr<Mesh>>      meshes;
         std::vector<std::shared_ptr<Light>>     lights;
         std::vector<std::shared_ptr<Camera>>    cameras;
-        std::vector<std::shared_ptr<ObjectNode>> objectNodes;
+        std::vector<ObjectNodePtr> objectNodes;
+        
+        void BuildObjectNodeHierarchy();
+        Eigen::Matrix4f GetNodeGlobalTransform(const ObjectNodePtr& node, uint32_t frame = 0xFFFFFFFF) const;
         
         // Helper functions
         std::shared_ptr<Mesh> FindMesh(const std::string& name);
         const std::shared_ptr<Mesh> FindMesh(const std::string& name) const;
-
+        
         // Print scene information
         void PrintInfo() const;
     };
