@@ -5,8 +5,7 @@
 #include <ranges>
 #include "Logger.h"
 
-//constexpr auto kMeshFilePath = "D:\\Programming\\3DSLab\\src\\3DS\\Samples\\LC_ChipmunkStudio_011922a2.3ds";
-constexpr auto kMeshFilePath = "D:\\Programming\\3DSLab\\src\\3DS\\Samples\\55.3ds";
+constexpr auto kMeshFilePath = R"(src\3DS\Samples\sample_model.3ds)";
 
 static void GetMeshesToRender(const Debugger3DS::Scene& scene, std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXi>>& meshData);
 static void DrawCoordinateAxes(igl::opengl::glfw::Viewer& viewer, double axisLength = 10.0);
@@ -53,8 +52,14 @@ int main(int argc, char *argv[])
         viewer.data(data_id).set_mesh(V, F);
         viewer.data(data_id).set_face_based(true);
         
-        // Add mesh to selector
+        // Give each mesh a different color for easy identification
+        if (i > 0) {
+            Eigen::RowVector3d color;
+            color << (i * 0.3) - floor(i * 0.3), (i * 0.7) - floor(i * 0.7), (i * 0.5) - floor(i * 0.5);
+            viewer.data(data_id).set_colors(color);
+        }
         
+        // Add mesh to selector
         if (usingObjectNodes) {
             auto objectNodePtr = scene.objectNodes[i];
             auto nodeTransform = scene.GetNodeGlobalTransform(objectNodePtr);
@@ -65,30 +70,10 @@ int main(int argc, char *argv[])
         } else {
             selector.AddMesh(data_id, nullptr, meshName);
         }
-        
-        // Give each mesh a different color for easy identification
-        if (i > 0) {
-            Eigen::RowVector3d color;
-            color << (i * 0.3) - floor(i * 0.3), (i * 0.7) - floor(i * 0.7), (i * 0.5) - floor(i * 0.5);
-            viewer.data(data_id).set_colors(color);
-        }
     }
 
     // Enable mesh selection (use N/P keys to cycle, C to clear)
     selector.EnableSelection();
-    selector.SetSelectionCallback([&scene](std::shared_ptr<Debugger3DS::ObjectNode> objectNode) {
-        if (objectNode) {
-            std::cout << objectNode->PrintInfo(scene.currentFrame);
-            
-            // Print mesh matrix if available
-            if (objectNode->associatedMesh) {
-                std::cout << "\nMesh Matrix:" << std::endl;
-                std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
-            }
-        } else {
-            std::cout << "\nNo object selected" << std::endl;
-        }
-    });
 
     // Draw coordinate axes
     DrawCoordinateAxes(viewer, 10.0);

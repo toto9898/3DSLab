@@ -63,7 +63,7 @@ void MeshSelector::AddMesh(int dataId, ObjectNodePtr objectNode, const std::stri
     meshBBoxes_.push_back(bbox);
     
     // Store original colors for this mesh
-    originalColors_[dataId] = viewer_.data(dataId).V_material_ambient;
+    originalColors_[dataId] = viewer_.data(dataId).V_material_diffuse;
 }
 
 void MeshSelector::AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, const std::string& name,
@@ -325,17 +325,6 @@ int MeshSelector::FindMeshUnderCursor() {
     // Test ray intersection with each mesh
     for (size_t i = 0; i < meshIds_.size(); ++i) {
         int meshId = meshIds_[i];
-        
-        // First, quick rejection test with bounding box
-        if (!meshBBoxes_[i].min.isZero() || !meshBBoxes_[i].max.isZero()) {
-            double tMin, tMax;
-            if (!meshBBoxes_[i].IntersectsRay(rayOrigin, rayDir, tMin, tMax)) {
-                // Ray doesn't intersect bounding box, skip expensive mesh test
-                continue;
-            }
-        }
-        
-        // Bounding box test passed (or no bbox), do precise mesh intersection
         int fid;
         Eigen::Vector3f bc;
         

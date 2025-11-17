@@ -35,3 +35,6 @@ build/*
 
 # temp files
 *.zip
+
+# 3DS files
+*.3ds
