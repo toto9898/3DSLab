@@ -4,16 +4,19 @@
         {
             "label": "build-debug",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build", 
-                "build",
-                "--config",
-                "Debug"
-            ],
+            "command": "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 && cmake --build build --config Debug",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
             "group": {
                 "kind": "build",
-                "isDefault": true
+                "isDefault": false
             },
             "presentation": {
                 "echo": true,
@@ -21,17 +24,40 @@
                 "focus": false,
                 "panel": "shared"
             },
-            "problemMatcher": "$gcc",
-            "dependsOn": "configure-debug"
+            "problemMatcher": "$msCompile"
         },
         {
             "label": "configure-debug",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "-B", "build",
-                "-DCMAKE_BUILD_TYPE=Debug"
-            ],
+            "command": "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \"-DCMAKE_C_COMPILER=C:/Program Files/LLVM/bin/clang-cl.exe\" \"-DCMAKE_CXX_COMPILER=C:/Program Files/LLVM/bin/clang-cl.exe\"",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "configure-release",
+            "type": "shell",
+            "command": "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 && cmake -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release \"-DCMAKE_C_COMPILER=C:/Program Files/LLVM/bin/clang-cl.exe\" \"-DCMAKE_CXX_COMPILER=C:/Program Files/LLVM/bin/clang-cl.exe\"",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/c"]
+                }
+            },
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -43,33 +69,62 @@
         {
             "label": "build-release",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build", 
-                "build",
-                "--config",
-                "Release"
-            ],
+            "command": "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 && cmake --build build-release",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": ["/c"]
+                }
+            },
             "group": "build",
+            "dependsOn": "configure-release",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
                 "focus": false,
                 "panel": "shared"
             },
-            "problemMatcher": "$gcc"
+            "problemMatcher": "$msCompile"
         },
         {
             "label": "clean",
             "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "build",
-                "--target",
-                "clean"
-            ],
+            "command": "call \"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64 && cmake --build build --target clean",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "shell": {
+                    "executable": "cmd.exe",
+                    "args": [
+                        "/c"
+                    ]
+                }
+            },
             "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: clang-cl.exe build active file",
+            "command": "C:\\Program Files\\LLVM\\bin\\clang-cl.exe",
+            "args": [
+                "-fcolor-diagnostics",
+                "-fansi-escape-codes",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+            ],
+            "options": {
+                "cwd": "C:\\Program Files\\LLVM\\bin"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Task generated by Debugger."
         }
     ]
 }

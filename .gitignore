@@ -31,7 +31,7 @@
 *.swo
 *.swp
 
-build/*
+build*/*
 
 # temp files
 temp/*

@@ -1,4 +1,13 @@
 {
+    "cmake.defaultKit": "Visual Studio Build Tools 2022 Release - amd64",
+    "cmake.generator": "Ninja",
+    "cmake.configureSettings": {
+        "CMAKE_C_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe",
+        "CMAKE_CXX_COMPILER": "C:/Program Files/LLVM/bin/clang-cl.exe"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.configureOnOpen": false,
+    "cmake.installPrefix": "${workspaceFolder}/install",
     "files.associations": {
         "algorithm": "cpp",
         "array": "cpp",
