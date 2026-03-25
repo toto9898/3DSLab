@@ -10,6 +10,8 @@ namespace Debugger3DS::UI {
     public:
         explicit SceneTreePanel(const Scene& scene);
         void Draw();
+        // Draw just the content (without Begin/End), for embedding in a parent window
+        void DrawContent();
 
     private:
         const Scene& scene_;

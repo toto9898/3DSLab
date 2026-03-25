@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "3DS/SceneObjects/ObjectNode.h"
 #include "Logger.h"
+#include <imgui.h>
 #include <iostream>
 #include <ranges>
 #include <any>
@@ -29,8 +30,32 @@ void Application::SetupViewer() {
     viewer_.core().rotation_type = igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL;
     
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
-    imguiMenu_.callback_draw_custom_window = [this]() {
-        scenePanel_->Draw();
+
+    // Replace the default two-window layout with a single tabbed window
+    imguiMenu_.callback_draw_viewer_window = [this]() {
+        ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f),   ImGuiCond_FirstUseEver);
+
+        if (!ImGui::Begin("Inspector")) {
+            ImGui::End();
+            return;
+        }
+
+        if (ImGui::BeginTabBar("InspectorTabs")) {
+            if (ImGui::BeginTabItem("Scene")) {
+                scenePanel_->DrawContent();
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Viewer")) {
+                ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.4f);
+                imguiMenu_.draw_viewer_menu();
+                ImGui::PopItemWidth();
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
+        }
+
+        ImGui::End();
     };
     
     // Upload meshes and setup selector

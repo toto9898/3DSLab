@@ -21,14 +21,19 @@ void SceneTreePanel::Draw()
         return;
     }
 
+    DrawContent();
+
+    ImGui::End();
+}
+
+void SceneTreePanel::DrawContent()
+{
     DrawSceneInfo();
     DrawMeshesSection();
     DrawMaterialsSection();
     DrawLightsSection();
     DrawCamerasSection();
     DrawObjectNodeHierarchy();
-
-    ImGui::End();
 }
 
 // -------------------------------------------------------------------------
