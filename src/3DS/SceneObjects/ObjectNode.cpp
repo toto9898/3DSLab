@@ -32,11 +32,6 @@ namespace Debugger3DS {
         Eigen::Matrix4f translationMatrix = Eigen::Matrix4f::Identity();
         translationMatrix.block<3, 1>(0, 3) = position;
         
-        Eigen::Matrix4f meshMatrix = Eigen::Matrix4f::Identity();
-        if (associatedMesh) {
-            meshMatrix = associatedMesh->meshMatrix;
-        }
-
         Eigen::Matrix4f keyframeMatrix = translationMatrix * rotationMatrix * scaleMatrix;
 
         if (!pivot.isZero()) {
@@ -45,11 +40,19 @@ namespace Debugger3DS {
             keyframeMatrix *= negativePivotMatrix;
         }
         
-        return keyframeMatrix * meshMatrix.inverse();
+        return keyframeMatrix * cachedMeshMatrixInverse;
     }
 
     std::string ObjectNode::GetEffectiveName() const {
         return instanceName.empty() ? associatedMeshName : instanceName;
+    }
+
+    void ObjectNode::CacheMeshMatrixInverse() {
+        if (associatedMesh) {
+            cachedMeshMatrixInverse = associatedMesh->meshMatrix.inverse();
+        } else {
+            cachedMeshMatrixInverse = Eigen::Matrix4f::Identity();
+        }
     }
 
     Eigen::Matrix4f ObjectNode::ApplyPivot(const Eigen::Matrix4f& transform) const {

@@ -26,6 +26,7 @@ namespace Debugger3DS {
                 auto mesh = scene_.FindMesh(objectNode->associatedMeshName);
                 if (mesh) {
                     objectNode->associatedMesh = mesh;
+                    objectNode->CacheMeshMatrixInverse();
                     
                     // Check if bounding box is zero and calculate from mesh if needed
                     bool isZeroBoundBox = (objectNode->boundingBox.min.isZero() &&

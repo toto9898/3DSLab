@@ -16,11 +16,19 @@ namespace Debugger3DS {
         }
     }
     
-    void Mesh::ApplyTransform(const Eigen::Matrix4f& transform) {
-        for (auto& vertex : vertices) {
-            Eigen::Vector4f v4(vertex.x(), vertex.y(), vertex.z(), 1.0f);
-            v4 = transform * v4;
-            vertex = v4.head<3>();
+    void Mesh::ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const Eigen::Matrix4f& transform) const {
+        Eigen::Matrix4d transformD = transform.cast<double>();
+        
+        V.resize(vertices.size(), 3);
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            Eigen::Vector4d v4(vertices[i].x(), vertices[i].y(), vertices[i].z(), 1.0);
+            v4 = transformD * v4;
+            V.row(i) = v4.head<3>().transpose();
+        }
+        
+        F.resize(faces.size(), 3);
+        for (size_t i = 0; i < faces.size(); ++i) {
+            F.row(i) << faces[i].a, faces[i].b, faces[i].c;
         }
     }
     

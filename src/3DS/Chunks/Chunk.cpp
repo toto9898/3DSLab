@@ -1,9 +1,8 @@
 #include "Chunk.h"
-//#include "ChunkFactory.h"
+#include "../Importer.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include "ChunkFactory.h"
 
 namespace Debugger3DS {
     
@@ -46,19 +45,32 @@ namespace Debugger3DS {
             
             std::shared_ptr<Chunk> childChunk = CreateChunk(stream_, importer);
             if (!childChunk) {
+                logging::log << "Failed to create child chunk in " << GetTypeName()
+                             << " at stream position " << beforeRead << std::endl;
                 break;
             }
 
             childChunk->parentId = GetId();
 
-            if (!childChunk->Read(importer))
+            if (!childChunk->Read(importer)) {
+                logging::log << "Failed to read child chunk " << childChunk->GetTypeName()
+                             << " (0x" << std::hex << childChunk->GetId() << std::dec
+                             << ") inside " << GetTypeName()
+                             << " at stream position " << beforeRead << std::endl;
                 return false;
+            }
 
             std::streampos afterRead = stream_.tellg();
             size_t chunkSize = static_cast<size_t>(afterRead - beforeRead);
 
             children_.push_back(std::move(childChunk));
             bytesRead += chunkSize;
+        }
+
+        if (stream_.tellg() != dataEndPos_) {
+            logging::log << "Chunk " << GetTypeName() << " (0x" << std::hex << GetId() << std::dec
+                         << "): expected end at " << dataEndPos_
+                         << " but stream at " << stream_.tellg() << std::endl;
         }
 
         return stream_.tellg() == dataEndPos_;
@@ -72,7 +84,7 @@ namespace Debugger3DS {
             return nullptr;
         }
 
-        std::shared_ptr<Chunk> chunk = ChunkFactory::GetInstance().CreateChunk(header_, stream);
+        std::shared_ptr<Chunk> chunk = importer.GetChunkFactory().CreateChunk(header_, stream);
         
         return chunk;
     }

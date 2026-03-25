@@ -2,7 +2,6 @@
 #include <igl/unproject_onto_mesh.h>
 #include <igl/unproject.h>
 #include <iostream>
-#include "3DS/SceneObjects/Mesh.h"
 
 namespace Debugger3DS {
 
@@ -37,28 +36,13 @@ bool AABB::IntersectsRay(const Eigen::Vector3d& origin, const Eigen::Vector3d& d
 }
 
 MeshSelector::MeshSelector(igl::opengl::glfw::Viewer& viewer)
-    : viewer_(viewer), selectedObjectNode_(nullptr), selectedMeshId_(-1), currentIndex_(-1), 
+    : viewer_(viewer), selectedMeshId_(-1), currentIndex_(-1), 
       isDragging_(false), mouseDownX_(0), mouseDownY_(0) {
-    
-    // default selection callback prints ObjectNode info at frame 0
-    selectionCallback_ = [](std::shared_ptr<Debugger3DS::ObjectNode> objectNode) {
-        if (objectNode) {
-            std::cout << objectNode->PrintInfo(0);
-
-            // Print mesh matrix if available
-            if (objectNode->associatedMesh) {
-                std::cout << "\nMesh Matrix:" << std::endl;
-                std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
-            }
-        } else {
-            std::cout << "\nNo object selected" << std::endl;
-        }
-    };
 }
 
-void MeshSelector::AddMesh(int dataId, ObjectNodePtr objectNode, const std::string& name, const AABB& bbox) {
+void MeshSelector::AddMesh(int dataId, std::any userData, const std::string& name, const AABB& bbox) {
     meshIds_.push_back(dataId);
-    objectNodes_.push_back(objectNode);
+    userData_.push_back(std::move(userData));
     meshNames_.push_back(name.empty() ? "Mesh " + std::to_string(dataId) : name);
     meshBBoxes_.push_back(bbox);
     
@@ -66,7 +50,7 @@ void MeshSelector::AddMesh(int dataId, ObjectNodePtr objectNode, const std::stri
     originalColors_[dataId] = viewer_.data(dataId).V_material_diffuse;
 }
 
-void MeshSelector::AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, const std::string& name,
+void MeshSelector::AddMeshWithTransform(int dataId, std::any userData, const std::string& name,
                                          const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                          const Eigen::Matrix4f& transform) {
     // Transform the 8 corners of the bounding box
@@ -99,7 +83,7 @@ void MeshSelector::AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, co
     }
     
     AABB bbox(transformedMin, transformedMax);
-    AddMesh(dataId, objectNode, name, bbox);
+    AddMesh(dataId, std::move(userData), name, bbox);
 }
 
 std::string MeshSelector::GetMeshName(int index) const {
@@ -122,13 +106,13 @@ void MeshSelector::SelectMesh(int dataId) {
         } else {
             currentIndex_ = index;
             selectedMeshId_ = dataId;
-            selectedObjectNode_ = objectNodes_[index];
+            selectedUserData_ = userData_[index];
             std::cout << "Selected: " << meshNames_[currentIndex_] 
                       << " (ID: " << selectedMeshId_ << ")" << std::endl;
             HighlightSelected();
             
             if (selectionCallback_) {
-                selectionCallback_(selectedObjectNode_);
+                selectionCallback_(selectedUserData_);
             }
         }
     }
@@ -161,7 +145,7 @@ void MeshSelector::DisableSelection() {
     viewer_.callback_mouse_move = nullptr;
 }
 
-void MeshSelector::SetSelectionCallback(std::function<void(ObjectNodePtr)> callback) {
+void MeshSelector::SetSelectionCallback(std::function<void(const std::any&)> callback) {
     selectionCallback_ = callback;
 }
 
@@ -190,7 +174,7 @@ void MeshSelector::ClearSelection() {
         }
     }
     
-    selectedObjectNode_ = nullptr;
+    selectedUserData_.reset();
     selectedMeshId_ = -1;
     currentIndex_ = -1;
 }
@@ -202,7 +186,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         
         currentIndex_ = (currentIndex_ + 1) % meshIds_.size();
         selectedMeshId_ = meshIds_[currentIndex_];
-        selectedObjectNode_ = objectNodes_[currentIndex_];
+        selectedUserData_ = userData_[currentIndex_];
         
         std::cout << "Selected: " << meshNames_[currentIndex_] 
                   << " (ID: " << selectedMeshId_ << ")" << std::endl;
@@ -210,7 +194,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         HighlightSelected();
         
         if (selectionCallback_) {
-            selectionCallback_(selectedObjectNode_);
+            selectionCallback_(selectedUserData_);
         }
         
         return true;
@@ -222,7 +206,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         
         currentIndex_ = (currentIndex_ - 1 + meshIds_.size()) % meshIds_.size();
         selectedMeshId_ = meshIds_[currentIndex_];
-        selectedObjectNode_ = objectNodes_[currentIndex_];
+        selectedUserData_ = userData_[currentIndex_];
         
         std::cout << "Selected: " << meshNames_[currentIndex_] 
                   << " (ID: " << selectedMeshId_ << ")" << std::endl;
@@ -230,7 +214,7 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
         HighlightSelected();
         
         if (selectionCallback_) {
-            selectionCallback_(selectedObjectNode_);
+            selectionCallback_(selectedUserData_);
         }
         
         return true;

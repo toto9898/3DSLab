@@ -37,8 +37,8 @@ namespace Debugger3DS {
         // Convert to Eigen matrices for libigl
         void ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F) const;
         
-        // Apply transformation to all vertices
-        void ApplyTransform(const Eigen::Matrix4f& transform);
+        // Convert to Eigen matrices with a transform applied (non-destructive)
+        void ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const Eigen::Matrix4f& transform) const;
         
         // Get bounding box
         std::pair<Eigen::Vector3f, Eigen::Vector3f> GetBoundingBox() const;

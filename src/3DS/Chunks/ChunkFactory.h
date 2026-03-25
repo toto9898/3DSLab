@@ -12,10 +12,7 @@ namespace Debugger3DS {
     public:
         using ChunkCreator = std::function<std::shared_ptr<Chunk>()>;
         
-        static ChunkFactory& GetInstance() {
-            static ChunkFactory instance;
-            return instance;
-        }
+        ChunkFactory() = default;
         
         // Register a chunk creator function for a specific chunk ID
         void RegisterChunk(uint16_t chunkId, ChunkCreator creator) {
@@ -52,7 +49,6 @@ namespace Debugger3DS {
         }
         
     private:
-        ChunkFactory() = default;
         std::unordered_map<uint16_t, ChunkCreator> creators_;
     };
         

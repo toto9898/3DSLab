@@ -6,6 +6,7 @@
 #include <stack>
 #include <Eigen/Dense>
 #include "Scene.h"
+#include "Chunks/ChunkFactory.h"
 
 // Forward declarations to avoid circular dependencies
 namespace Debugger3DS {
@@ -73,7 +74,12 @@ namespace Debugger3DS {
         ObjectNodePtr GetCurrentObjectNode() const { return currentObjectNode_; }
         void SetCurrentObjectNode(ObjectNodePtr node) { currentObjectNode_ = node; }
         
+        // Factory accessor for chunk creation
+        ChunkFactory& GetChunkFactory() { return chunkFactory_; }
+        
+    private:
         Scene scene_;
+        ChunkFactory chunkFactory_;
         
     private:
         

@@ -20,6 +20,8 @@ namespace Debugger3DS {
             return false;
         }
         
+        importer.SetKeyframeHeader(revision_, filename_, animLength_);
+        
         logging::log << "Keyframe Header - Revision: " << revision_ 
                   << ", File: " << filename_ 
                   << ", Animation Length: " << animLength_ << " frames" << std::endl;
@@ -44,6 +46,8 @@ namespace Debugger3DS {
             return false;
         }
         
+        importer.SetKeyframeSegment(start_, end_);
+        
         logging::log << "Keyframe Segment - Start: " << start_ 
                   << ", End: " << end_ << std::endl;
         
@@ -60,6 +64,8 @@ namespace Debugger3DS {
         if (!Read(currentFrame_)) {
             return false;
         }
+        
+        importer.SetKeyframeCurrentTime(currentFrame_);
         
         logging::log << "Current Time Frame: " << currentFrame_ << std::endl;
         

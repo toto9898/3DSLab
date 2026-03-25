@@ -10,13 +10,16 @@ namespace Debugger3DS {
     struct Material;
     class Importer;
 
-    // Base class for material-related chunks that need to access the current material
+    // Base class for material-related chunks that need to access the current material.
+    // Provides a default ReadData that validates the current material and logs.
+    // Subclasses that only act as containers can rely on this default.
     class MaterialContainerChunk : public Chunk {
     public:
         using Chunk::Chunk;
         
+        bool ReadData(Importer& importer) override;
+        
     protected:
-        // Helper to get and validate current material
         bool GetCurrentMaterial(Importer& importer);
         
         std::shared_ptr<Material> targetMaterial_;
@@ -48,8 +51,6 @@ namespace Debugger3DS {
     class MatShininessChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_SHININESS"; }
     };
     
@@ -57,8 +58,6 @@ namespace Debugger3DS {
     class MatShin2PctChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_SHIN2PCT"; }
     };
     
@@ -70,8 +69,6 @@ namespace Debugger3DS {
     class MatTransparencyChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_TRANSPARENCY"; }
     };
     
@@ -79,8 +76,6 @@ namespace Debugger3DS {
     class MatXpfallChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_XPFALL"; }
     };
     
@@ -88,8 +83,6 @@ namespace Debugger3DS {
     class MatRefblurChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_REFBLUR"; }
     };
     
@@ -101,8 +94,6 @@ namespace Debugger3DS {
     class MatSelfIllumChunk : public MaterialContainerChunk {
     public:
         using MaterialContainerChunk::MaterialContainerChunk;
-
-        bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_SELF_ILLUM"; }
     };
     

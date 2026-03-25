@@ -17,7 +17,7 @@ namespace Debugger3DS {
         }
         
         // Register all chunk types
-        RegisterAllChunks(file);
+        RegisterAllChunks(chunkFactory_, file);
 
         logging::log << "Loading 3DS file: " << filename << std::endl;
         

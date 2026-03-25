@@ -87,8 +87,14 @@ namespace Debugger3DS {
         // Associated mesh reference (resolved at runtime)
         std::shared_ptr<Mesh> associatedMesh = nullptr;   // Link to the NAMED_OBJECT mesh
         
+        // Cached inverse of the mesh matrix (computed when mesh is linked)
+        Eigen::Matrix4f cachedMeshMatrixInverse = Eigen::Matrix4f::Identity();
+        
         // Constructor
         ObjectNode() : pivot(Eigen::Vector3f::Zero()) {}
+        
+        // Call after associatedMesh is linked to cache the inverse
+        void CacheMeshMatrixInverse();
         
         // Get transformation matrix at specific frame
         Eigen::Matrix4f GetTransformAtFrame(uint32_t frame) const;

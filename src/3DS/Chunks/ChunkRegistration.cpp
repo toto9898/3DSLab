@@ -10,8 +10,7 @@
 #include "MeshMatrixChunk.h"
 #include "MshMatGroupChunk.h"
 #include "MaterialChunks.h"
-#include "ColorFChunk.h"
-#include "Color24Chunk.h"
+#include "ColorChunks.h"
 #include "NodeHdrChunk.h"
 #include "PercentageChunk.h"
 #include "SmoothGroupChunk.h"
@@ -22,8 +21,7 @@
 namespace Debugger3DS {
     
     // Register all chunk types with the factory
-    void RegisterAllChunks(std::istream& stream) {
-        auto& factory = ChunkFactory::GetInstance();
+    void RegisterAllChunks(ChunkFactory& factory, std::istream& stream) {
         factory.RegisterChunk<M3dMagicChunk>(ChunkType::M3DMAGIC, stream);
 
         // Main file chunks

@@ -4,7 +4,7 @@
 #include <vector>
 #include <functional>
 #include <memory>
-#include "3DS/SceneObjects/ObjectNode.h"
+#include <any>
 
 namespace Debugger3DS {
 
@@ -24,11 +24,11 @@ class MeshSelector {
 public:
     MeshSelector(igl::opengl::glfw::Viewer& viewer);
     
-    // Add a mesh with its data_id, object node pointer, and optional bounding box
-    void AddMesh(int dataId, ObjectNodePtr objectNode, const std::string& name = "", const AABB& bbox = AABB());
+    // Add a mesh with its data_id, user data, and optional bounding box
+    void AddMesh(int dataId, std::any userData, const std::string& name = "", const AABB& bbox = AABB());
     
     // Add a mesh with automatic bounding box computation from transformation
-    void AddMeshWithTransform(int dataId, ObjectNodePtr objectNode, const std::string& name, 
+    void AddMeshWithTransform(int dataId, std::any userData, const std::string& name, 
                                const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                const Eigen::Matrix4f& transform);
     
@@ -38,14 +38,14 @@ public:
     // Disable selection
     void DisableSelection();
     
-    // Get currently selected object node (nullptr if none)
-    ObjectNodePtr GetSelectedObjectNode() const { return selectedObjectNode_; }
+    // Get user data for currently selected mesh
+    const std::any& GetSelectedUserData() const { return selectedUserData_; }
     
     // Get mesh name by index
     std::string GetMeshName(int index) const;
     
     // Set callback for when selection changes
-    void SetSelectionCallback(std::function<void(ObjectNodePtr)> callback);
+    void SetSelectionCallback(std::function<void(const std::any&)> callback);
     
     // Highlight the selected mesh
     void HighlightSelected();
@@ -56,14 +56,14 @@ public:
 private:
     igl::opengl::glfw::Viewer& viewer_;
     std::vector<int> meshIds_;
-    std::vector<ObjectNodePtr> objectNodes_;
+    std::vector<std::any> userData_;
     std::vector<std::string> meshNames_;
     std::vector<AABB> meshBBoxes_;
-    ObjectNodePtr selectedObjectNode_;
+    std::any selectedUserData_;
     int selectedMeshId_;
     int currentIndex_;
     
-    std::function<void(ObjectNodePtr)> selectionCallback_;
+    std::function<void(const std::any&)> selectionCallback_;
     
     // Original colors for restoring
     std::map<int, Eigen::MatrixXd> originalColors_;

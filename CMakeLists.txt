@@ -34,14 +34,14 @@ igl_include(opengl)
 # Add your project files explicitly with relative paths
 set(SRC_FILES
     src/main.cpp
+    src/Application.cpp
     src/MeshSelector.cpp
     src/3DS/Importer.cpp
     src/3DS/Scene.cpp
     src/3DS/SceneObjects/Mesh.cpp
     src/3DS/Chunks/Chunk.cpp
     src/3DS/Chunks/ChunkRegistration.cpp
-    src/3DS/Chunks/Color24Chunk.cpp
-    src/3DS/Chunks/ColorFChunk.cpp
+    src/3DS/Chunks/ColorChunks.cpp
     src/3DS/Chunks/FaceArrayChunk.cpp
     src/3DS/Chunks/M3dVersionChunk.cpp
     src/3DS/Chunks/MasterScaleChunk.cpp

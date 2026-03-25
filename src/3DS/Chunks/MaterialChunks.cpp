@@ -14,6 +14,15 @@ namespace Debugger3DS {
         return targetMaterial_ != nullptr;
     }
 
+    bool MaterialContainerChunk::ReadData(Importer& importer) {
+        if (!GetCurrentMaterial(importer)) {
+            return false;
+        }
+        
+        logging::log << GetTypeName() << " container" << std::endl;
+        return true;
+    }
+
     bool MatNameChunk::ReadData(Importer& importer) {
         if (!Read(name_)) {
             return false;
@@ -37,67 +46,13 @@ namespace Debugger3DS {
     // Material Shininess
     //==============================================================================
 
-    bool MatShininessChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Shininess container" << std::endl;
-        return true;
-    }
-
-    bool MatShin2PctChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Shininess Percentage container" << std::endl;
-        return true;
-    }
-
     //==============================================================================
     // Material Transparency
     //==============================================================================
 
-    bool MatTransparencyChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Transparency container" << std::endl;
-        return true;
-    }
-
-    bool MatXpfallChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Transparency Falloff container" << std::endl;
-        return true;
-    }
-
-    bool MatRefblurChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Reflection Blur container" << std::endl;
-        return true;
-    }
-
     //==============================================================================
     // Material Properties
     //==============================================================================
-
-    bool MatSelfIllumChunk::ReadData(Importer& importer) {
-        if (!GetCurrentMaterial(importer)) {
-            return false;
-        }
-        
-        logging::log << "Material Self Illumination container" << std::endl;
-        return true;
-    }
 
     bool MatWireSizeChunk::ReadData(Importer& importer) {
         if (!GetCurrentMaterial(importer)) {
