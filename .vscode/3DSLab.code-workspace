@@ -118,6 +118,10 @@
 				"approve": true,
 				"matchCommandLine": true
 			}
-		}
+		},
+		"cSpell.words": [
+			"Eigen",
+			"glfw"
+		]
 	}
 }
