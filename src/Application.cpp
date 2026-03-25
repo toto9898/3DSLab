@@ -6,6 +6,25 @@
 #include <ranges>
 #include <any>
 
+namespace {
+
+// Snap the current ImGui window to screen edges when within snapDist pixels.
+// Must be called between Begin() and End().
+void SnapWindowToEdges(float snapDist = 20.0f) {
+    ImVec2 pos  = ImGui::GetWindowPos();
+    ImVec2 size = ImGui::GetWindowSize();
+    ImVec2 disp = ImGui::GetIO().DisplaySize;
+    bool snapped = false;
+    float sx = pos.x, sy = pos.y;
+    if      (pos.x < snapDist)                    { sx = 0; snapped = true; }
+    else if (pos.x + size.x > disp.x - snapDist) { sx = disp.x - size.x; snapped = true; }
+    if      (pos.y < snapDist)                    { sy = 0; snapped = true; }
+    else if (pos.y + size.y > disp.y - snapDist)  { sy = disp.y - size.y; snapped = true; }
+    if (snapped) ImGui::SetWindowPos(ImVec2(sx, sy));
+}
+
+} // anonymous namespace
+
 namespace Debugger3DS {
 
 bool Application::LoadScene(const std::string& filepath) {
@@ -34,9 +53,13 @@ void Application::SetupViewer() {
     // Replace the default two-window layout with a single tabbed window
     imguiMenu_.callback_draw_viewer_window = [this]() {
         ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f),   ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f),     ImGuiCond_FirstUseEver);
 
-        if (!ImGui::Begin("Inspector")) {
+        bool visible = ImGui::Begin("Inspector");
+
+        SnapWindowToEdges();
+
+        if (!visible) {
             ImGui::End();
             return;
         }
