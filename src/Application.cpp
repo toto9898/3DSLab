@@ -25,6 +25,9 @@ void Application::SetupViewer() {
     viewer_.plugins.push_back(&imguiPlugin_);
     imguiPlugin_.widgets.push_back(&imguiMenu_);
     
+    // Use trackball rotation instead of the default two-axis valuator
+    viewer_.core().rotation_type = igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL;
+    
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
     imguiMenu_.callback_draw_custom_window = [this]() {
         scenePanel_->Draw();
