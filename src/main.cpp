@@ -1,5 +1,8 @@
 #include <igl/opengl/glfw/Viewer.h>
+#include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
+#include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include "3DS/Importer.h"
+#include "3DS/UI/SceneTreePanel.h"
 #include "MeshSelector.h"
 #include <iostream>
 #include <ranges>
@@ -25,6 +28,17 @@ int main(int argc, char *argv[])
 
     // Create viewer
     igl::opengl::glfw::Viewer viewer;
+
+    // Setup ImGui plugin with a scene tree panel
+    igl::opengl::glfw::imgui::ImGuiPlugin imgui_plugin;
+    viewer.plugins.push_back(&imgui_plugin);
+    igl::opengl::glfw::imgui::ImGuiMenu imgui_menu;
+    imgui_plugin.widgets.push_back(&imgui_menu);
+
+    Debugger3DS::UI::SceneTreePanel scene_panel(scene);
+    imgui_menu.callback_draw_custom_window = [&]() {
+        scene_panel.Draw();
+    };
 
     logging::Logger::enabled = true;
 

@@ -77,8 +77,8 @@ namespace Debugger3DS {
         
         // Node chunks
         constexpr uint16_t NODE_HDR        = 0xB010;  // Node header
+        constexpr uint16_t INSTANCE_NAME   = 0xB011;  // Instance name
         constexpr uint16_t NODE_ID         = 0xB030;  // Node ID
-        constexpr uint16_t INSTANCE_NAME   = 0xB031;  // Instance name
         constexpr uint16_t PIVOT           = 0xB013;  // Pivot point
         constexpr uint16_t BOUNDBOX        = 0xB014;  // Bounding box
         constexpr uint16_t POS_TRACK_TAG   = 0xB020;  // Position track

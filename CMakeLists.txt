@@ -17,7 +17,7 @@ include(libigl)
 igl_include(glfw)
 # Other modules you could enable
 #igl_include(embree)
-#igl_include(imgui)
+igl_include(imgui)
 igl_include(opengl)
 #igl_include(stb)
 #igl_include(predicates)
@@ -60,9 +60,22 @@ set(SRC_FILES
     src/3DS/Chunks/ObjectNodeChunks.cpp
     src/3DS/SceneObjects/ObjectNode.cpp
     src/3DS/Animation/AnimationHeaders.cpp
+    src/3DS/UI/SceneTreePanel.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
+
+# Fix: GLFW's cmake emits /clang:-Wall (a clang-cl flag) but the glfw target is
+# compiled by clang.exe on this toolchain, which rejects it as an unknown file.
+# Replace it with the plain -Wall that clang.exe understands.
+if(TARGET glfw)
+    get_target_property(_glfw_opts glfw COMPILE_OPTIONS)
+    if(_glfw_opts)
+        list(REMOVE_ITEM _glfw_opts "/clang:-Wall")
+        list(APPEND _glfw_opts "-Wall")
+        set_property(TARGET glfw PROPERTY COMPILE_OPTIONS "${_glfw_opts}")
+    endif()
+endif()
 
 # Add include directories for headers
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -74,13 +87,16 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/3DS/Animation
 )
 
+# Prevent Windows.h from defining min/max macros (conflicts with std::min/std::max in libigl)
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+
 # Link igl (and the glfw module) to your project
 target_link_libraries(${PROJECT_NAME} PUBLIC 
   igl::glfw
   igl::opengl
+  igl::imgui
   ## Other modules you could link to
   # igl::embree
-  # igl::imgui
   # igl::opengl
   # igl::stb
   # igl::predicates
