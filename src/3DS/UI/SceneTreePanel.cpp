@@ -8,6 +8,35 @@ namespace Debugger3DS::UI {
 
 SceneTreePanel::SceneTreePanel(const Scene& scene) : scene_(scene) {}
 
+void SceneTreePanel::SetSelectedNodeId(uint16_t nodeId) {
+    selectedNodeId_ = nodeId;
+    nodesToOpen_.clear();
+    forceOpenHierarchy_ = true;
+    scrollToSelected_ = true;
+
+    // Walk parent chain to collect ancestor IDs for auto-expand
+    for (const auto& node : scene_.objectNodes) {
+        if (node->nodeId == nodeId) {
+            auto parent = node->parentNode;
+            while (parent) {
+                nodesToOpen_.insert(parent->nodeId);
+                parent = parent->parentNode;
+            }
+            break;
+        }
+    }
+}
+
+void SceneTreePanel::ClearSelection() {
+    selectedNodeId_ = 0xFFFF;
+    nodesToOpen_.clear();
+    forceOpenHierarchy_ = false;
+}
+
+void SceneTreePanel::SetNodeSelectionCallback(std::function<void(uint16_t)> callback) {
+    nodeSelectionCallback_ = std::move(callback);
+}
+
 // -------------------------------------------------------------------------
 // Public entry point — draws the full "Scene Tree" window each frame
 // -------------------------------------------------------------------------
@@ -278,6 +307,12 @@ void SceneTreePanel::DrawObjectNodeHierarchy()
     char header[64];
     snprintf(header, sizeof(header), "Object Nodes (%zu)###ObjectNodes",
              scene_.objectNodes.size());
+
+    if (forceOpenHierarchy_) {
+        ImGui::SetNextItemOpen(true);
+        forceOpenHierarchy_ = false;
+    }
+
     if (!ImGui::CollapsingHeader(header))
         return;
 
@@ -306,6 +341,9 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
                              | ImGuiTreeNodeFlags_SpanAvailWidth;
 
+    if (node->nodeId == selectedNodeId_)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
     // Collect children for recursive rendering
     std::vector<ObjectNodePtr> children;
     for (const auto& n : allNodes) {
@@ -313,7 +351,24 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
             children.push_back(n);
     }
 
+    // Auto-expand ancestors of the selected node
+    if (nodesToOpen_.erase(node->nodeId))
+        ImGui::SetNextItemOpen(true);
+
     bool open = ImGui::TreeNodeEx(label, flags);
+
+    // Scroll to bring the selected node into view
+    if (node->nodeId == selectedNodeId_ && scrollToSelected_) {
+        ImGui::SetScrollHereY();
+        scrollToSelected_ = false;
+    }
+
+    // Detect click on this tree node
+    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+        selectedNodeId_ = node->nodeId;
+        if (nodeSelectionCallback_)
+            nodeSelectionCallback_(node->nodeId);
+    }
 
     if (open) {
         // Mesh link — expandable like a Meshes section entry

@@ -50,6 +50,13 @@ void Application::SetupViewer() {
     
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
 
+    // Sync ImGui tree click → 3D scene selection
+    scenePanel_->SetNodeSelectionCallback([this](uint16_t nodeId) {
+        auto it = nodeToDataId_.find(nodeId);
+        if (it != nodeToDataId_.end() && selector_)
+            selector_->SelectMesh(it->second);
+    });
+
     // Replace the default two-window layout with a single tabbed window
     imguiMenu_.callback_draw_viewer_window = [this]() {
         ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
@@ -129,14 +136,16 @@ void Application::UploadMeshes() {
     
     selector_ = std::make_unique<MeshSelector>(viewer_);
     
-    // Set domain-specific selection callback
-    selector_->SetSelectionCallback([](const std::any& userData) {
+    // Set domain-specific selection callback — sync 3D selection → ImGui tree
+    selector_->SetSelectionCallback([this](const std::any& userData) {
         if (!userData.has_value()) {
+            scenePanel_->ClearSelection();
             std::cout << "\nNo object selected" << std::endl;
             return;
         }
         auto objectNode = std::any_cast<ObjectNodePtr>(userData);
         if (objectNode) {
+            scenePanel_->SetSelectedNodeId(objectNode->nodeId);
             std::cout << objectNode->PrintInfo(0);
             if (objectNode->associatedMesh) {
                 std::cout << "\nMesh Matrix:" << std::endl;
@@ -172,6 +181,7 @@ void Application::UploadMeshes() {
             selector_->AddMeshWithTransform(data_id, std::any(objectNodePtr), meshName,
                                           objectNodePtr->boundingBox.min, objectNodePtr->boundingBox.max,
                                           nodeTransform);
+            nodeToDataId_[objectNodePtr->nodeId] = data_id;
         } else {
             selector_->AddMesh(data_id, std::any{}, meshName);
         }

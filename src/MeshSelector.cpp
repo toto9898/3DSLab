@@ -1,6 +1,7 @@
 #include "MeshSelector.h"
 #include <igl/unproject_onto_mesh.h>
 #include <igl/unproject.h>
+#include <imgui.h>
 #include <iostream>
 
 namespace Debugger3DS {
@@ -177,6 +178,10 @@ void MeshSelector::ClearSelection() {
     selectedUserData_.reset();
     selectedMeshId_ = -1;
     currentIndex_ = -1;
+    
+    if (selectionCallback_) {
+        selectionCallback_(std::any{});
+    }
 }
 
 bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
@@ -231,6 +236,10 @@ bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
 }
 
 bool MeshSelector::OnMouseDown(int button, int modifier) {
+    // Don't start selection when ImGui wants the mouse (clicking UI elements)
+    if (ImGui::GetIO().WantCaptureMouse)
+        return false;
+
     // Left click - record position to detect drag vs click
     if (button == 0) { // Left mouse button
         isDragging_ = false;
@@ -243,6 +252,9 @@ bool MeshSelector::OnMouseDown(int button, int modifier) {
 }
 
 bool MeshSelector::OnMouseUp(int button, int modifier) {
+    if (ImGui::GetIO().WantCaptureMouse)
+        return false;
+
     // Left click released - check if it was a click (not a drag)
     if (button == 0) { // Left mouse button
         if (!isDragging_) {

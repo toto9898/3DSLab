@@ -8,6 +8,7 @@
 #include "MeshSelector.h"
 #include <string>
 #include <memory>
+#include <unordered_map>
 
 namespace Debugger3DS {
 
@@ -33,6 +34,7 @@ private:
     igl::opengl::glfw::imgui::ImGuiMenu imguiMenu_;
     std::unique_ptr<UI::SceneTreePanel> scenePanel_;
     std::unique_ptr<MeshSelector> selector_;
+    std::unordered_map<uint16_t, int> nodeToDataId_;
     
     // Prepare mesh data from scene (with transforms applied non-destructively)
     std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXi>> GetMeshesToRender() const;

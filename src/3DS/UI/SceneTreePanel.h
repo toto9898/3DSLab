@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../Scene.h"
+#include <functional>
+#include <unordered_set>
 
 namespace Debugger3DS::UI {
 
@@ -13,8 +15,21 @@ namespace Debugger3DS::UI {
         // Draw just the content (without Begin/End), for embedding in a parent window
         void DrawContent();
 
+        // Highlight a node and auto-expand its ancestors in the tree
+        void SetSelectedNodeId(uint16_t nodeId);
+        // Clear the current selection highlight
+        void ClearSelection();
+        // Callback fired when user clicks a node in the tree (passes nodeId)
+        void SetNodeSelectionCallback(std::function<void(uint16_t)> callback);
+
     private:
         const Scene& scene_;
+
+        uint16_t selectedNodeId_ = 0xFFFF;
+        bool forceOpenHierarchy_ = false;
+        bool scrollToSelected_ = false;
+        std::unordered_set<uint16_t> nodesToOpen_;
+        std::function<void(uint16_t)> nodeSelectionCallback_;
 
         void DrawSceneInfo();
         void DrawMeshesSection();

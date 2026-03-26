@@ -53,6 +53,9 @@ public:
     // Clear selection
     void ClearSelection();
     
+    // Select mesh by data_id (toggles if already selected)
+    void SelectMesh(int dataId);
+    
 private:
     igl::opengl::glfw::Viewer& viewer_;
     std::vector<int> meshIds_;
@@ -83,9 +86,6 @@ private:
     
     // Find mesh under mouse cursor using ray casting
     int FindMeshUnderCursor();
-    
-    // Select mesh by data_id
-    void SelectMesh(int dataId);
 };
 
 } // namespace Debugger3DS
