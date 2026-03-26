@@ -63,7 +63,7 @@ namespace Debugger3DS {
         // Node identification
         uint16_t nodeId = 0;              // NODE_ID
         std::string associatedMeshName;   // From NODE_HDR - name of the NAMED_OBJECT mesh
-        uint16_t parentId = 0xFFFF;    // From NODE_HDR - parent node index (0xFFFF = no parent)
+        uint16_t parentId = 0xFFFF;    // From NODE_HDR - parent node ID (0xFFFF = no parent/root)
         ObjectNodePtr parentNode = nullptr; // Resolved parent node pointer
         uint16_t nodeFlags = 0;           // From NODE_HDR
         

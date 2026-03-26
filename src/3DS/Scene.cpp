@@ -1,12 +1,13 @@
 #include <ranges>
-#include <stack>
+#include <unordered_map>
 #include "Scene.h"
 #include "../Logger.h"
 
 namespace Debugger3DS {
     void Scene::BuildObjectNodeHierarchy()
     {
-        // Ensure all nodes have unique IDs
+        // For R1/R2 files (no NODE_ID chunks), assign sequential IDs matching
+        // positional order in the KFDATA section.
         auto nodeIdIsZero = [](const ObjectNodePtr& node) { return node->nodeId == 0; };
         if (std::all_of(objectNodes.begin(), objectNodes.end(), nodeIdIsZero)) {
             uint16_t nodeId = 0;
@@ -15,17 +16,26 @@ namespace Debugger3DS {
             }
         }
 
+        // NODE_HDR's parent field references another node by NODE_ID.
+        // For R1/R2 files without NODE_ID chunks, it references the node's
+        // positional index in the KFDATA section (matches auto-assigned IDs above).
+        // For R3 files, NODE_ID chunks override positional ordering.
+        // 0xFFFF (65535) means no parent (root node).
+        std::unordered_map<uint16_t, ObjectNodePtr> nodeById;
+        for (auto& node : objectNodes) {
+            nodeById.emplace(node->nodeId, node); // first occurrence wins
+        }
+
         for (auto& node : objectNodes) {
             if (node->HasParent()) {
-                auto parentId = node->parentId;
-                auto parentIt = std::find_if(objectNodes.begin(), objectNodes.end(),
-                    [parentId](const auto& n) { return n->nodeId == parentId; });
-                
-                if (parentIt == objectNodes.end()) {
-                    logging::log << "Warning: Invalid parent index " << parentId
-                                 << " for node ID " << node->nodeId << std::endl;
+                auto it = nodeById.find(node->parentId);
+                if (it != nodeById.end() && it->second != node) {
+                    node->parentNode = it->second;
                 } else {
-                    node->parentNode = *parentIt;
+                    logging::log << "Warning: Node '" << node->associatedMeshName
+                                 << "' (ID " << node->nodeId
+                                 << ") references unknown parent ID " << node->parentId
+                                 << ". Treating as root." << std::endl;
                 }
             }
         }

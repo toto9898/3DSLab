@@ -21,6 +21,8 @@ namespace Debugger3DS::UI {
         void ClearSelection();
         // Callback fired when user clicks a node in the tree (passes nodeId)
         void SetNodeSelectionCallback(std::function<void(uint16_t)> callback);
+        // Callback fired when user clicks the zoom button on a node
+        void SetZoomCallback(std::function<void(uint16_t)> callback);
 
     private:
         const Scene& scene_;
@@ -30,6 +32,7 @@ namespace Debugger3DS::UI {
         bool scrollToSelected_ = false;
         std::unordered_set<uint16_t> nodesToOpen_;
         std::function<void(uint16_t)> nodeSelectionCallback_;
+        std::function<void(uint16_t)> zoomCallback_;
 
         void DrawSceneInfo();
         void DrawMeshesSection();

@@ -37,6 +37,10 @@ void SceneTreePanel::SetNodeSelectionCallback(std::function<void(uint16_t)> call
     nodeSelectionCallback_ = std::move(callback);
 }
 
+void SceneTreePanel::SetZoomCallback(std::function<void(uint16_t)> callback) {
+    zoomCallback_ = std::move(callback);
+}
+
 // -------------------------------------------------------------------------
 // Public entry point — draws the full "Scene Tree" window each frame
 // -------------------------------------------------------------------------
@@ -339,7 +343,8 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
         node->nodeId);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
-                             | ImGuiTreeNodeFlags_SpanAvailWidth;
+                             | ImGuiTreeNodeFlags_SpanAvailWidth
+                             | ImGuiTreeNodeFlags_AllowItemOverlap;
 
     if (node->nodeId == selectedNodeId_)
         flags |= ImGuiTreeNodeFlags_Selected;
@@ -356,6 +361,16 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
         ImGui::SetNextItemOpen(true);
 
     bool open = ImGui::TreeNodeEx(label, flags);
+
+    // Zoom-to-fit button on the same line, right-aligned
+    {
+        char btnId[32];
+        snprintf(btnId, sizeof(btnId), "F###zoom%u", node->nodeId);
+        float btnWidth = ImGui::CalcTextSize("F").x + ImGui::GetStyle().FramePadding.x * 2.0f;
+        ImGui::SameLine(ImGui::GetContentRegionMax().x - btnWidth);
+        if (ImGui::SmallButton(btnId) && zoomCallback_)
+            zoomCallback_(node->nodeId);
+    }
 
     // Scroll to bring the selected node into view
     if (node->nodeId == selectedNodeId_ && scrollToSelected_) {

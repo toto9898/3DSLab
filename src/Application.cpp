@@ -5,6 +5,7 @@
 #include <iostream>
 #include <ranges>
 #include <any>
+#include <algorithm>
 
 namespace {
 
@@ -57,6 +58,11 @@ void Application::SetupViewer() {
             selector_->SelectMesh(it->second);
     });
 
+    // Zoom-to-fit button callback
+    scenePanel_->SetZoomCallback([this](uint16_t nodeId) {
+        ZoomToNode(nodeId);
+    });
+
     // Replace the default two-window layout with a single tabbed window
     imguiMenu_.callback_draw_viewer_window = [this]() {
         ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
@@ -91,6 +97,28 @@ void Application::SetupViewer() {
     // Upload meshes and setup selector
     UploadMeshes();
     
+    // Animate camera zoom transitions each frame
+    viewer_.callback_pre_draw = [this](igl::opengl::glfw::Viewer&) -> bool {
+        if (!cameraAnim_.active) return false;
+        
+        auto now = std::chrono::steady_clock::now();
+        float elapsed = std::chrono::duration<float>(now - cameraAnim_.startTime).count();
+        float t = std::clamp(elapsed / cameraAnim_.duration, 0.0f, 1.0f);
+        
+        // Smooth-step interpolation
+        float s = t * t * (3.0f - 2.0f * t);
+        
+        viewer_.core().camera_base_zoom = 
+            cameraAnim_.startZoom + s * (cameraAnim_.targetZoom - cameraAnim_.startZoom);
+        viewer_.core().camera_base_translation = 
+            cameraAnim_.startTranslation + s * (cameraAnim_.targetTranslation - cameraAnim_.startTranslation);
+        
+        if (t >= 1.0f)
+            cameraAnim_.active = false;
+        
+        return false;
+    };
+    
     DrawCoordinateAxes(10.0);
     
     std::cout << "\nControls:\n";
@@ -103,27 +131,28 @@ void Application::Run() {
     viewer_.launch();
 }
 
-std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXi>> Application::GetMeshesToRender() const {
-    std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXi>> meshData;
+std::vector<Application::MeshEntry> Application::GetMeshesToRender() const {
+    std::vector<MeshEntry> meshData;
     
     bool hasValidAssociations = std::ranges::any_of(scene_.objectNodes, 
         [](const auto& node) { return node->associatedMesh != nullptr; });
     
     if (scene_.objectNodes.empty() || !hasValidAssociations) {
         for (const auto& mesh : scene_.meshes) {
-            Eigen::MatrixXd V;
-            Eigen::MatrixXi F;
-            mesh->ToEigenMatrices(V, F);
-            meshData.emplace_back(V, F);
+            MeshEntry entry;
+            mesh->ToEigenMatrices(entry.V, entry.F);
+            entry.meshName = mesh->name;
+            meshData.push_back(std::move(entry));
         }
     } else {
         for (const auto& node : scene_.objectNodes) {
             if (node->associatedMesh) {
-                Eigen::MatrixXd V;
-                Eigen::MatrixXi F;
+                MeshEntry entry;
                 Eigen::Matrix4f nodeTransform = scene_.GetNodeGlobalTransform(node);
-                node->associatedMesh->ToEigenMatrices(V, F, nodeTransform);
-                meshData.emplace_back(V, F);
+                node->associatedMesh->ToEigenMatrices(entry.V, entry.F, nodeTransform);
+                entry.node = node;
+                entry.meshName = node->associatedMeshName;
+                meshData.push_back(std::move(entry));
             }
         }
     }
@@ -154,40 +183,61 @@ void Application::UploadMeshes() {
         }
     });
     
-    bool hasValidAssociations = std::ranges::any_of(scene_.objectNodes, 
-        [](const auto& node) { return node->associatedMesh != nullptr; });
-    bool usingObjectNodes = !scene_.objectNodes.empty() && hasValidAssociations;
-    
-    for (size_t i = 0; i < meshData.size(); ++i) {
-        std::string meshName = usingObjectNodes ? scene_.objectNodes[i]->associatedMeshName : scene_.meshes[i]->name;
-        if (meshName == "$$$DUMMY")
+    size_t uploadedCount = 0;
+    for (auto& entry : meshData) {
+        if (entry.meshName == "$$$DUMMY")
             continue;
         
-        const auto& [V, F] = meshData[i];
-        
-        int data_id = (i == 0) ? viewer_.data().id : viewer_.append_mesh();
-        viewer_.data(data_id).set_mesh(V, F);
+        int data_id = (uploadedCount == 0) ? viewer_.data().id : viewer_.append_mesh();
+        viewer_.data(data_id).set_mesh(entry.V, entry.F);
         viewer_.data(data_id).set_face_based(true);
         
-        if (i > 0) {
+        if (uploadedCount > 0) {
             Eigen::RowVector3d color;
-            color << (i * 0.3) - floor(i * 0.3), (i * 0.7) - floor(i * 0.7), (i * 0.5) - floor(i * 0.5);
+            color << (uploadedCount * 0.3) - floor(uploadedCount * 0.3),
+                     (uploadedCount * 0.7) - floor(uploadedCount * 0.7),
+                     (uploadedCount * 0.5) - floor(uploadedCount * 0.5);
             viewer_.data(data_id).set_colors(color);
         }
         
-        if (usingObjectNodes) {
-            auto objectNodePtr = scene_.objectNodes[i];
-            auto nodeTransform = scene_.GetNodeGlobalTransform(objectNodePtr);
-            selector_->AddMeshWithTransform(data_id, std::any(objectNodePtr), meshName,
-                                          objectNodePtr->boundingBox.min, objectNodePtr->boundingBox.max,
+        if (entry.node) {
+            auto nodeTransform = scene_.GetNodeGlobalTransform(entry.node);
+            selector_->AddMeshWithTransform(data_id, std::any(entry.node), entry.meshName,
+                                          entry.node->boundingBox.min, entry.node->boundingBox.max,
                                           nodeTransform);
-            nodeToDataId_[objectNodePtr->nodeId] = data_id;
+            nodeToDataId_[entry.node->nodeId] = data_id;
         } else {
-            selector_->AddMesh(data_id, std::any{}, meshName);
+            selector_->AddMesh(data_id, std::any{}, entry.meshName);
         }
+        ++uploadedCount;
     }
     
     selector_->EnableSelection();
+}
+
+void Application::ZoomToNode(uint16_t nodeId) {
+    auto it = nodeToDataId_.find(nodeId);
+    if (it == nodeToDataId_.end()) return;
+    
+    int dataId = it->second;
+    const auto& V = viewer_.data(dataId).V;
+    const auto& F = viewer_.data(dataId).F;
+    if (V.rows() == 0) return;
+    
+    float targetZoom;
+    Eigen::Vector3f targetShift;
+    viewer_.core().get_scale_and_shift_to_fit_mesh(V, F, targetZoom, targetShift);
+    
+    // Reset user pan/zoom so only base values drive the camera
+    cameraAnim_.startZoom = viewer_.core().camera_base_zoom * viewer_.core().camera_zoom;
+    cameraAnim_.startTranslation = viewer_.core().camera_base_translation + viewer_.core().camera_translation;
+    viewer_.core().camera_zoom = 1.0f;
+    viewer_.core().camera_translation.setZero();
+    
+    cameraAnim_.targetZoom = targetZoom;
+    cameraAnim_.targetTranslation = targetShift;
+    cameraAnim_.active = true;
+    cameraAnim_.startTime = std::chrono::steady_clock::now();
 }
 
 void Application::DrawCoordinateAxes(double axisLength) {
