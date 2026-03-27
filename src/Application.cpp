@@ -86,6 +86,31 @@ void Application::SetupViewer() {
                 ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.4f);
                 imguiMenu_.draw_viewer_menu();
                 ImGui::PopItemWidth();
+
+                // Sync draw options from the active mesh to all other meshes
+                auto& active = viewer_.data();
+                for (int i = 0; i < viewer_.data_list.size(); ++i) {
+                    auto& d = viewer_.data_list[i];
+                    if (d.id == active.id) continue;
+                    d.show_lines         = active.show_lines;
+                    d.show_faces         = active.show_faces;
+                    d.show_overlay       = active.show_overlay;
+                    d.show_overlay_depth = active.show_overlay_depth;
+                    d.show_vertex_labels = active.show_vertex_labels;
+                    d.show_face_labels   = active.show_face_labels;
+                    d.show_custom_labels = active.show_custom_labels;
+                    d.show_texture       = active.show_texture;
+                    d.line_color         = active.line_color;
+                    d.shininess          = active.shininess;
+                    if (d.face_based != active.face_based) {
+                        d.set_face_based(active.face_based);
+                    }
+                    if (d.invert_normals != active.invert_normals) {
+                        d.invert_normals = active.invert_normals;
+                        d.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
+                    }
+                }
+
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
