@@ -21,27 +21,21 @@ namespace Debugger3DS {
 
         if (objectNode) {
             // Try to associate with existing mesh
-            if (!objectNode->associatedMeshName.empty()) {
-                auto scene_ = importer.GetScene();
-                auto mesh = scene_.FindMesh(objectNode->associatedMeshName);
-                if (mesh) {
-                    objectNode->associatedMesh = mesh;
-                    objectNode->CacheMeshMatrixInverse();
-                    
-                    // Check if bounding box is zero and calculate from mesh if needed
-                    bool isZeroBoundBox = (objectNode->boundingBox.min.isZero() &&
-                                          objectNode->boundingBox.max.isZero());
+            auto& scene_ = importer.GetScene();
+            auto mesh = scene_.FindMesh(objectNode->associatedMeshName);
+            if (mesh) {
+                objectNode->associatedMesh = mesh;
+                objectNode->CacheMeshMatrixInverse();
+                
+                // Check if bounding box is zero and calculate from mesh if needed
+                bool isZeroBoundBox = (objectNode->boundingBox.min.isZero() &&
+                                      objectNode->boundingBox.max.isZero());
 
-                    if (isZeroBoundBox && !mesh->vertices.empty()) {
-                        auto [minPoint, maxPoint] = mesh->GetBoundingBox();
-                        objectNode->boundingBox.min = minPoint;
-                        objectNode->boundingBox.max = maxPoint;
-                    }
-                } else {
-                    logging::log << "Warning: Could not find mesh '" << objectNode->associatedMeshName << "'" << std::endl;
+                if (isZeroBoundBox && !mesh->vertices.empty()) {
+                    auto [minPoint, maxPoint] = mesh->GetBoundingBox();
+                    objectNode->boundingBox.min = minPoint;
+                    objectNode->boundingBox.max = maxPoint;
                 }
-            } else {
-                logging::log << "Warning: ObjectNode has no associated mesh name" << std::endl;
             }
 
             objectNode = nullptr;

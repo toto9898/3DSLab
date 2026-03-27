@@ -54,7 +54,7 @@ namespace Debugger3DS {
             Eigen::Matrix4f parentTransform = currentNode->GetTransformAtFrame(frame);
             globalTransform = parentTransform * globalTransform;
         }
-        return globalTransform;
+        return globalTransform * node->cachedMeshMatrixInverse;
     }
 
     // Scene class implementations

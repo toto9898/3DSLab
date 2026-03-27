@@ -40,7 +40,7 @@ namespace Debugger3DS {
             keyframeMatrix *= negativePivotMatrix;
         }
         
-        return keyframeMatrix * cachedMeshMatrixInverse;
+        return keyframeMatrix;
     }
 
     std::string ObjectNode::GetEffectiveName() const {
