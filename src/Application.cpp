@@ -183,6 +183,8 @@ std::vector<Application::MeshEntry> Application::GetMeshesToRender() const {
                 MeshEntry entry;
                 Eigen::Matrix4f nodeTransform = scene_.GetNodeGlobalTransform(node);
                 node->associatedMesh->ToEigenMatrices(entry.V, entry.F, nodeTransform);
+                if (node->isReflected)
+                    entry.F.col(1).swap(entry.F.col(2));
                 entry.node = node;
                 entry.meshName = node->associatedMeshName;
                 meshData.push_back(std::move(entry));
