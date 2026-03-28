@@ -90,6 +90,9 @@ namespace Debugger3DS {
         // Cached inverse of the mesh matrix (computed when mesh is linked)
         Eigen::Matrix4f cachedMeshMatrixInverse = Eigen::Matrix4f::Identity();
         
+        // True when the mesh matrix has a negative determinant (reflection/mirror)
+        bool isReflected = false;
+        
         // Constructor
         ObjectNode() : pivot(Eigen::Vector3f::Zero()) {}
         

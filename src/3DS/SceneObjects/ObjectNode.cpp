@@ -49,7 +49,17 @@ namespace Debugger3DS {
 
     void ObjectNode::CacheMeshMatrixInverse() {
         if (associatedMesh) {
-            cachedMeshMatrixInverse = associatedMesh->meshMatrix.inverse();
+            Eigen::Matrix4f corrected = associatedMesh->meshMatrix;
+            float det = corrected.block<3, 3>(0, 0).determinant();
+            if (det < 0.0f) {
+                // The mesh matrix contains a reflection. Node hierarchy TRS tracks
+                // (axis-angle rotation + positive scale) can only produce transforms
+                // with positive determinant, so they can never reconstruct M exactly.
+                // Absorb the reflection by negating column 0 of the 3x3 block.
+                corrected.col(0).head<3>() = -corrected.col(0).head<3>();
+                isReflected = true;
+            }
+            cachedMeshMatrixInverse = corrected.inverse();
         } else {
             cachedMeshMatrixInverse = Eigen::Matrix4f::Identity();
         }
