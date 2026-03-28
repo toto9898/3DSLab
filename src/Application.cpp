@@ -51,16 +51,24 @@ void Application::SetupViewer() {
     
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
 
-    // Sync ImGui tree click → 3D scene selection
-    scenePanel_->SetNodeSelectionCallback([this](uint16_t nodeId) {
-        auto it = nodeToDataId_.find(nodeId);
-        if (it != nodeToDataId_.end() && selector_)
-            selector_->SelectMesh(it->second);
+    // Sync ImGui tree click → 3D scene selection (selects node + all descendants)
+    // Highlight meshes without firing the selection callback back to the tree
+    scenePanel_->SetNodeSelectionCallback([this](const std::vector<uint16_t>& nodeIds) {
+        if (!selector_) return;
+        std::vector<int> dataIds;
+        for (uint16_t nid : nodeIds) {
+            auto it = nodeToDataId_.find(nid);
+            if (it != nodeToDataId_.end())
+                dataIds.push_back(it->second);
+        }
+        selector_->ClearSelection();
+        if (!dataIds.empty())
+            selector_->SelectMeshes(dataIds, /*fireCallback=*/false);
     });
 
-    // Zoom-to-fit button callback
-    scenePanel_->SetZoomCallback([this](uint16_t nodeId) {
-        ZoomToNode(nodeId);
+    // Zoom-to-fit button callback (zooms to node + all descendants)
+    scenePanel_->SetZoomCallback([this](const std::vector<uint16_t>& nodeIds) {
+        ZoomToNodes(nodeIds);
     });
 
     // Replace the default two-window layout with a single tabbed window
@@ -241,17 +249,43 @@ void Application::UploadMeshes() {
 }
 
 void Application::ZoomToNode(uint16_t nodeId) {
-    auto it = nodeToDataId_.find(nodeId);
-    if (it == nodeToDataId_.end()) return;
+    ZoomToNodes({nodeId});
+}
+
+void Application::ZoomToNodes(const std::vector<uint16_t>& nodeIds) {
+    // Combine vertices and faces from all matching nodes
+    Eigen::MatrixXd allV;
+    Eigen::MatrixXi allF;
+    int totalRows = 0, totalFaces = 0;
+    for (uint16_t nid : nodeIds) {
+        auto it = nodeToDataId_.find(nid);
+        if (it == nodeToDataId_.end()) continue;
+        const auto& V = viewer_.data(it->second).V;
+        const auto& F = viewer_.data(it->second).F;
+        if (V.rows() == 0) continue;
+        totalRows += V.rows();
+        totalFaces += F.rows();
+    }
+    if (totalRows == 0) return;
     
-    int dataId = it->second;
-    const auto& V = viewer_.data(dataId).V;
-    const auto& F = viewer_.data(dataId).F;
-    if (V.rows() == 0) return;
+    allV.resize(totalRows, 3);
+    allF.resize(totalFaces, 3);
+    int vOffset = 0, fOffset = 0;
+    for (uint16_t nid : nodeIds) {
+        auto it = nodeToDataId_.find(nid);
+        if (it == nodeToDataId_.end()) continue;
+        const auto& V = viewer_.data(it->second).V;
+        const auto& F = viewer_.data(it->second).F;
+        if (V.rows() == 0) continue;
+        allV.middleRows(vOffset, V.rows()) = V;
+        allF.middleRows(fOffset, F.rows()) = F.array() + vOffset;
+        vOffset += V.rows();
+        fOffset += F.rows();
+    }
     
     float targetZoom;
     Eigen::Vector3f targetShift;
-    viewer_.core().get_scale_and_shift_to_fit_mesh(V, F, targetZoom, targetShift);
+    viewer_.core().get_scale_and_shift_to_fit_mesh(allV, allF, targetZoom, targetShift);
     
     // Reset user pan/zoom so only base values drive the camera
     cameraAnim_.startZoom = viewer_.core().camera_base_zoom * viewer_.core().camera_zoom;

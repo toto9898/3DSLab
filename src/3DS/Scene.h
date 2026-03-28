@@ -39,6 +39,9 @@ namespace Debugger3DS {
         void BuildObjectNodeHierarchy();
         Eigen::Matrix4f GetNodeGlobalTransform(const ObjectNodePtr& node, uint32_t frame = 0xFFFFFFFF) const;
         
+        // Collect nodeId + all descendant nodeIds (BFS)
+        std::vector<uint16_t> GetDescendantNodeIds(uint16_t nodeId) const;
+        
         // Helper functions
         std::shared_ptr<Mesh> FindMesh(const std::string& name);
         const std::shared_ptr<Mesh> FindMesh(const std::string& name) const;

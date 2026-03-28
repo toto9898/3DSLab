@@ -56,6 +56,9 @@ public:
     // Select mesh by data_id (toggles if already selected)
     void SelectMesh(int dataId);
     
+    // Select multiple meshes by data_id (replaces current selection)
+    void SelectMeshes(const std::vector<int>& dataIds, bool fireCallback = true);
+    
 private:
     igl::opengl::glfw::Viewer& viewer_;
     std::vector<int> meshIds_;
@@ -65,6 +68,7 @@ private:
     std::any selectedUserData_;
     int selectedMeshId_;
     int currentIndex_;
+    std::vector<int> additionalSelectedIds_;
     
     std::function<void(const std::any&)> selectionCallback_;
     

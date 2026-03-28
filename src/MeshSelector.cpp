@@ -101,10 +101,12 @@ void MeshSelector::SelectMesh(int dataId) {
         int index = std::distance(meshIds_.begin(), it);
         
         // Toggle selection: if clicking the same mesh, deselect it
-        if (selectedMeshId_ == dataId) {
+        if (selectedMeshId_ == dataId && additionalSelectedIds_.empty()) {
             std::cout << "Deselected: " << meshNames_[index] << std::endl;
             ClearSelection();
         } else {
+            // Clear any multi-selection first
+            additionalSelectedIds_.clear();
             currentIndex_ = index;
             selectedMeshId_ = dataId;
             selectedUserData_ = userData_[index];
@@ -150,6 +152,38 @@ void MeshSelector::SetSelectionCallback(std::function<void(const std::any&)> cal
     selectionCallback_ = callback;
 }
 
+void MeshSelector::SelectMeshes(const std::vector<int>& dataIds, bool fireCallback) {
+    // Reset all meshes first
+    for (size_t i = 0; i < meshIds_.size(); ++i) {
+        int id = meshIds_[i];
+        if (originalColors_.find(id) != originalColors_.end())
+            viewer_.data(id).set_colors(originalColors_[id]);
+    }
+    additionalSelectedIds_.clear();
+
+    if (dataIds.empty()) {
+        ClearSelection();
+        return;
+    }
+
+    // First id becomes primary selection
+    selectedMeshId_ = dataIds[0];
+    auto it2 = std::find(meshIds_.begin(), meshIds_.end(), dataIds[0]);
+    if (it2 != meshIds_.end()) {
+        currentIndex_ = std::distance(meshIds_.begin(), it2);
+        selectedUserData_ = userData_[currentIndex_];
+    }
+
+    // Rest are additional
+    for (size_t i = 1; i < dataIds.size(); ++i)
+        additionalSelectedIds_.push_back(dataIds[i]);
+
+    HighlightSelected();
+
+    if (fireCallback && selectionCallback_)
+        selectionCallback_(selectedUserData_);
+}
+
 void MeshSelector::HighlightSelected() {
     if (selectedMeshId_ < 0 || meshIds_.empty()) {
         return;
@@ -165,15 +199,19 @@ void MeshSelector::HighlightSelected() {
     
     // Highlight selected mesh with yellow
     viewer_.data(selectedMeshId_).set_colors(Eigen::RowVector3d(1.0, 1.0, 0.0));
+    // Highlight additional selected meshes
+    for (int id : additionalSelectedIds_)
+        viewer_.data(id).set_colors(Eigen::RowVector3d(1.0, 1.0, 0.0));
 }
 
 void MeshSelector::ClearSelection() {
-    if (selectedMeshId_ >= 0) {
-        // Restore original color
-        if (originalColors_.find(selectedMeshId_) != originalColors_.end()) {
-            viewer_.data(selectedMeshId_).set_colors(originalColors_[selectedMeshId_]);
-        }
+    // Restore all highlighted meshes to original colors
+    for (size_t i = 0; i < meshIds_.size(); ++i) {
+        int id = meshIds_[i];
+        if (originalColors_.find(id) != originalColors_.end())
+            viewer_.data(id).set_colors(originalColors_[id]);
     }
+    additionalSelectedIds_.clear();
     
     selectedUserData_.reset();
     selectedMeshId_ = -1;

@@ -33,11 +33,11 @@ void SceneTreePanel::ClearSelection() {
     forceOpenHierarchy_ = false;
 }
 
-void SceneTreePanel::SetNodeSelectionCallback(std::function<void(uint16_t)> callback) {
+void SceneTreePanel::SetNodeSelectionCallback(std::function<void(const std::vector<uint16_t>&)> callback) {
     nodeSelectionCallback_ = std::move(callback);
 }
 
-void SceneTreePanel::SetZoomCallback(std::function<void(uint16_t)> callback) {
+void SceneTreePanel::SetZoomCallback(std::function<void(const std::vector<uint16_t>&)> callback) {
     zoomCallback_ = std::move(callback);
 }
 
@@ -327,6 +327,9 @@ void SceneTreePanel::DrawObjectNodeHierarchy()
             DrawObjectNode(node, scene_.objectNodes);
     }
     ImGui::Unindent();
+
+    // Clear force-open state after the full draw pass
+    nodesToOpen_.clear();
 }
 
 void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
@@ -343,6 +346,7 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
         node->nodeId);
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow
+                             | ImGuiTreeNodeFlags_OpenOnDoubleClick
                              | ImGuiTreeNodeFlags_SpanAvailWidth
                              | ImGuiTreeNodeFlags_AllowItemOverlap;
 
@@ -357,10 +361,13 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
     }
 
     // Auto-expand ancestors of the selected node
-    if (nodesToOpen_.erase(node->nodeId))
+    if (nodesToOpen_.count(node->nodeId))
         ImGui::SetNextItemOpen(true);
 
     bool open = ImGui::TreeNodeEx(label, flags);
+
+    // Capture tree-node click state before any other widgets
+    bool treeNodeClicked = ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen();
 
     // Zoom-to-fit button on the same line, right-aligned
     {
@@ -369,7 +376,7 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
         float btnWidth = ImGui::CalcTextSize("F").x + ImGui::GetStyle().FramePadding.x * 2.0f;
         ImGui::SameLine(ImGui::GetContentRegionMax().x - btnWidth);
         if (ImGui::SmallButton(btnId) && zoomCallback_)
-            zoomCallback_(node->nodeId);
+            zoomCallback_(scene_.GetDescendantNodeIds(node->nodeId));
     }
 
     // Scroll to bring the selected node into view
@@ -378,11 +385,11 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
         scrollToSelected_ = false;
     }
 
-    // Detect click on this tree node
-    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+    // Handle tree node click (uses saved state from before the button)
+    if (treeNodeClicked) {
         selectedNodeId_ = node->nodeId;
         if (nodeSelectionCallback_)
-            nodeSelectionCallback_(node->nodeId);
+            nodeSelectionCallback_(scene_.GetDescendantNodeIds(node->nodeId));
     }
 
     if (open) {

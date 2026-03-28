@@ -66,6 +66,8 @@ private:
     
     // Start a smooth camera animation to fit a node's mesh
     void ZoomToNode(uint16_t nodeId);
+    // Zoom to fit multiple nodes
+    void ZoomToNodes(const std::vector<uint16_t>& nodeIds);
 };
 
 } // namespace Debugger3DS

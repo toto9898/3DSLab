@@ -57,6 +57,20 @@ namespace Debugger3DS {
         return globalTransform * node->cachedMeshMatrixInverse;
     }
 
+    std::vector<uint16_t> Scene::GetDescendantNodeIds(uint16_t nodeId) const {
+        std::vector<uint16_t> result;
+        result.push_back(nodeId);
+        // BFS over objectNodes to collect all descendants
+        for (size_t i = 0; i < result.size(); ++i) {
+            uint16_t current = result[i];
+            for (const auto& node : objectNodes) {
+                if (node->parentNode && node->parentNode->nodeId == current)
+                    result.push_back(node->nodeId);
+            }
+        }
+        return result;
+    }
+
     // Scene class implementations
     std::shared_ptr<Mesh> Scene::FindMesh(const std::string& name) {
         for (auto& mesh : meshes) {
