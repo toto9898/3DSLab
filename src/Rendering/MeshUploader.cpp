@@ -2,6 +2,7 @@
 #include <iostream>
 #include <ranges>
 #include <any>
+#include <cmath>
 
 namespace Debugger3DS {
 
@@ -36,7 +37,7 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
     return meshData;
 }
 
-void MeshUploader::UploadMeshes(igl::opengl::glfw::Viewer& viewer,
+void MeshUploader::UploadMeshes(Renderer& renderer,
                                  const Scene& scene,
                                  MeshSelector& selector,
                                  std::unordered_map<uint16_t, int>& nodeToDataId,
@@ -50,45 +51,48 @@ void MeshUploader::UploadMeshes(igl::opengl::glfw::Viewer& viewer,
         if (entry.meshName == "$$$DUMMY")
             continue;
 
-        int data_id = (uploadedCount == 0) ? viewer.data().id : viewer.append_mesh();
-        viewer.data(data_id).set_mesh(entry.V, entry.F);
-        viewer.data(data_id).set_face_based(true);
-
-        if (uploadedCount > 0) {
-            Eigen::RowVector3d color;
-            color << (uploadedCount * 0.3) - floor(uploadedCount * 0.3),
-                     (uploadedCount * 0.7) - floor(uploadedCount * 0.7),
-                     (uploadedCount * 0.5) - floor(uploadedCount * 0.5);
-            viewer.data(data_id).set_colors(color);
+        // Generate a distinct color per mesh
+        float r, g, b;
+        if (uploadedCount == 0) {
+            r = 0.8f; g = 0.8f; b = 0.8f; // first mesh: light gray
+        } else {
+            r = static_cast<float>(uploadedCount * 0.3 - std::floor(uploadedCount * 0.3));
+            g = static_cast<float>(uploadedCount * 0.7 - std::floor(uploadedCount * 0.7));
+            b = static_cast<float>(uploadedCount * 0.5 - std::floor(uploadedCount * 0.5));
         }
+
+        uint32_t color = Renderer::PackColor(r, g, b);
+        int meshId = renderer.UploadMesh(entry.V, entry.F, color);
 
         if (entry.node) {
             auto nodeTransform = scene.GetNodeGlobalTransform(entry.node);
-            selector.AddMeshWithTransform(data_id, std::any(entry.node), entry.meshName,
+            selector.AddMeshWithTransform(meshId, std::any(entry.node), color, entry.meshName,
                                           entry.node->boundingBox.min, entry.node->boundingBox.max,
                                           nodeTransform);
-            nodeToDataId[entry.node->nodeId] = data_id;
+            nodeToDataId[entry.node->nodeId] = meshId;
         } else {
-            selector.AddMesh(data_id, std::any{}, entry.meshName);
+            selector.AddMesh(meshId, std::any{}, color, entry.meshName);
         }
+
+        // Store the original color in the selector
+        // (The selector already stored a default — overwrite via its internal vector)
+        // This is handled by AddMesh storing the color.
+
         ++uploadedCount;
     }
-
-    selector.EnableSelection();
 }
 
-void MeshUploader::DrawCoordinateAxes(igl::opengl::glfw::Viewer& viewer, double axisLength) {
-    Eigen::MatrixXd start(1, 3), end(1, 3);
-    start << 0, 0, 0;
+std::vector<PosColorVertex> MeshUploader::MakeCoordinateAxes(double axisLength) {
+    float len = static_cast<float>(axisLength);
+    uint32_t red   = Renderer::PackColor(1.0f, 0.0f, 0.0f);
+    uint32_t green = Renderer::PackColor(0.0f, 1.0f, 0.0f);
+    uint32_t blue  = Renderer::PackColor(0.0f, 0.0f, 1.0f);
 
-    end << axisLength, 0, 0;
-    viewer.data().add_edges(start, end, Eigen::RowVector3d(1, 0, 0));
-
-    end << 0, axisLength, 0;
-    viewer.data().add_edges(start, end, Eigen::RowVector3d(0, 1, 0));
-
-    end << 0, 0, axisLength;
-    viewer.data().add_edges(start, end, Eigen::RowVector3d(0, 0, 1));
+    return {
+        {0, 0, 0, red},   {len, 0, 0, red},
+        {0, 0, 0, green}, {0, len, 0, green},
+        {0, 0, 0, blue},  {0, 0, len, blue},
+    };
 }
 
 } // namespace Debugger3DS

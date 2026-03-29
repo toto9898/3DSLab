@@ -1,15 +1,14 @@
 #include "Application.h"
-#include "MeshUploader.h"
 #include "ObjectNode.h"
 #include "Logger.h"
 #include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_bgfx.h>
 #include <iostream>
 #include <any>
 
 namespace {
 
-// Snap the current ImGui window to screen edges when within snapDist pixels.
-// Must be called between Begin() and End().
 void SnapWindowToEdges(float snapDist = 20.0f) {
     ImVec2 pos  = ImGui::GetWindowPos();
     ImVec2 size = ImGui::GetWindowSize();
@@ -29,106 +28,62 @@ namespace Debugger3DS {
 
 bool Application::LoadScene(const std::string& filepath) {
     logging::Logger::enabled = false;
-    
     if (!importer_.Import3DS(filepath)) {
         logging::log << "Failed to load 3DS file" << std::endl;
         return false;
     }
-    
     scene_ = importer_.GetScene();
     logging::Logger::enabled = true;
     return true;
 }
 
 void Application::SetupViewer() {
-    // Setup ImGui plugin with a scene tree panel
-    viewer_.plugins.push_back(&imguiPlugin_);
-    imguiPlugin_.widgets.push_back(&imguiMenu_);
-    
-    // Use trackball rotation instead of the default two-axis valuator
-    viewer_.core().rotation_type = igl::opengl::ViewerCore::ROTATION_TYPE_TRACKBALL;
-    
+    // Initialize window
+    window_.Init(1280, 720, "3DSLab");
+
+    // Initialize bgfx renderer
+    renderer_.Init(window_.GetNativeHandle(), window_.GetWidth(), window_.GetHeight());
+
+    // Initialize camera
+    camera_.Init(45.0f, 0.1f, 10000.0f);
+
+    // Initialize ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOther(window_.GetGLFWWindow(), true);
+    ImGui_ImplBgfx_Init(255);
+
+    // Handle window resize
+    window_.onResize = [this](int w, int h) {
+        renderer_.HandleResize(static_cast<uint16_t>(w), static_cast<uint16_t>(h));
+    };
+
+    // Initialize selector
+    selector_.Init(renderer_, camera_);
+
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
 
-    // Sync ImGui tree click → 3D scene selection (selects node + all descendants)
-    // Highlight meshes without firing the selection callback back to the tree
+    // Sync ImGui tree → 3D selection
     scenePanel_->SetNodeSelectionCallback([this](const std::vector<uint16_t>& nodeIds) {
-        if (!selector_) return;
         std::vector<int> dataIds;
         for (uint16_t nid : nodeIds) {
             auto it = nodeToDataId_.find(nid);
             if (it != nodeToDataId_.end())
                 dataIds.push_back(it->second);
         }
-        selector_->ClearSelection();
+        selector_.ClearSelection();
         if (!dataIds.empty())
-            selector_->SelectMeshes(dataIds, /*fireCallback=*/false);
+            selector_.SelectMeshes(dataIds, false);
     });
 
-    // Zoom-to-fit button callback (zooms to node + all descendants)
+    // Zoom callback
     scenePanel_->SetZoomCallback([this](const std::vector<uint16_t>& nodeIds) {
-        if (camera_) camera_->ZoomToNodes(nodeIds, nodeToDataId_);
+        camera_.ZoomToNodes(nodeIds, nodeToDataId_, renderer_);
     });
 
-    // Replace the default two-window layout with a single tabbed window
-    imguiMenu_.callback_draw_viewer_window = [this]() {
-        ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f),     ImGuiCond_FirstUseEver);
-
-        bool visible = ImGui::Begin("Inspector");
-
-        SnapWindowToEdges();
-
-        if (!visible) {
-            ImGui::End();
-            return;
-        }
-
-        if (ImGui::BeginTabBar("InspectorTabs")) {
-            if (ImGui::BeginTabItem("Scene")) {
-                scenePanel_->DrawContent();
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Viewer")) {
-                ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.4f);
-                imguiMenu_.draw_viewer_menu();
-                ImGui::PopItemWidth();
-
-                // Sync draw options from the active mesh to all other meshes
-                auto& active = viewer_.data();
-                for (int i = 0; i < viewer_.data_list.size(); ++i) {
-                    auto& d = viewer_.data_list[i];
-                    if (d.id == active.id) continue;
-                    d.show_lines         = active.show_lines;
-                    d.show_faces         = active.show_faces;
-                    d.show_overlay       = active.show_overlay;
-                    d.show_overlay_depth = active.show_overlay_depth;
-                    d.show_vertex_labels = active.show_vertex_labels;
-                    d.show_face_labels   = active.show_face_labels;
-                    d.show_custom_labels = active.show_custom_labels;
-                    d.show_texture       = active.show_texture;
-                    d.line_color         = active.line_color;
-                    d.shininess          = active.shininess;
-                    if (d.face_based != active.face_based) {
-                        d.set_face_based(active.face_based);
-                    }
-                    if (d.invert_normals != active.invert_normals) {
-                        d.invert_normals = active.invert_normals;
-                        d.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
-                    }
-                }
-
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
-        }
-
-        ImGui::End();
-    };
-    
-    // Upload meshes and setup selector
-    selector_ = std::make_unique<MeshSelector>(viewer_);
-    MeshUploader::UploadMeshes(viewer_, scene_, *selector_, nodeToDataId_,
+    // Upload meshes
+    MeshUploader::UploadMeshes(renderer_, scene_, selector_, nodeToDataId_,
         [this](const std::any& userData) {
             if (!userData.has_value()) {
                 scenePanel_->ClearSelection();
@@ -145,15 +100,9 @@ void Application::SetupViewer() {
                 }
             }
         });
-    
-    // Animate camera zoom transitions each frame
-    camera_ = std::make_unique<CameraController>(viewer_);
-    viewer_.callback_pre_draw = [this](igl::opengl::glfw::Viewer&) -> bool {
-        return camera_->Update();
-    };
-    
-    MeshUploader::DrawCoordinateAxes(viewer_, 10.0);
-    
+
+    axisLines_ = MeshUploader::MakeCoordinateAxes(10.0);
+
     std::cout << "\nControls:\n";
     std::cout << "  N - Next mesh\n";
     std::cout << "  P - Previous mesh\n";
@@ -161,7 +110,105 @@ void Application::SetupViewer() {
 }
 
 void Application::Run() {
-    viewer_.launch();
+    while (!window_.ShouldClose()) {
+        window_.ResetFrameInput();
+        window_.PollEvents();
+
+        uint16_t w = window_.GetWidth();
+        uint16_t h = window_.GetHeight();
+        if (w == 0 || h == 0) continue;
+
+        ProcessInput();
+        camera_.Update();
+
+        // Set view/projection
+        float aspect = static_cast<float>(w) / static_cast<float>(h);
+        bool hmgDepth = renderer_.IsHomogeneousDepth();
+        renderer_.SetViewTransform(camera_.GetViewMatrix(), camera_.GetProjectionMatrix(aspect, hmgDepth));
+
+        renderer_.BeginFrame(w, h);
+
+        // Set light direction (from upper-right-front) and eye position for Phong shading
+        Eigen::Vector3f lightDir = Eigen::Vector3f(0.3f, 1.0f, 0.5f).normalized();
+        renderer_.SetLightUniforms(lightDir, camera_.GetEyePosition());
+
+        // Draw all meshes
+        for (int i = 0; i < renderer_.GetMeshCount(); ++i)
+            renderer_.DrawMesh(i);
+
+        // Draw coordinate axes
+        renderer_.DrawLines(axisLines_);
+
+        // ImGui frame
+        ImGui_ImplBgfx_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        DrawImGui();
+
+        ImGui::Render();
+        ImGui_ImplBgfx_RenderDrawLists(ImGui::GetDrawData());
+
+        renderer_.EndFrame();
+    }
+
+    // Cleanup
+    ImGui_ImplBgfx_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    renderer_.Shutdown();
+    window_.Shutdown();
+}
+
+void Application::ProcessInput() {
+    const auto& input = window_.GetInput();
+
+    // Compute mouse delta
+    float deltaX = 0, deltaY = 0;
+    if (!firstMouse_) {
+        deltaX = static_cast<float>(input.mouseX - prevMouseX_);
+        deltaY = static_cast<float>(input.mouseY - prevMouseY_);
+    }
+    firstMouse_ = false;
+    prevMouseX_ = input.mouseX;
+    prevMouseY_ = input.mouseY;
+
+    // Camera controls (only when ImGui doesn't want input)
+    if (!ImGui::GetIO().WantCaptureMouse) {
+        bool leftDrag  = input.mouseButtons[0];
+        bool rightDrag = input.mouseButtons[1];
+        camera_.OnMouseDrag(deltaX, deltaY, leftDrag, rightDrag,
+                            static_cast<float>(window_.GetWidth()),
+                            static_cast<float>(window_.GetHeight()));
+        if (input.scrollDeltaY != 0)
+            camera_.OnScroll(static_cast<float>(input.scrollDeltaY));
+    }
+
+    // Mesh selection
+    selector_.ProcessInput(input, window_.GetWidth(), window_.GetHeight());
+}
+
+void Application::DrawImGui() {
+    ImGui::SetNextWindowSize(ImVec2(320.0f, 600.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_FirstUseEver);
+
+    bool visible = ImGui::Begin("Inspector");
+    SnapWindowToEdges();
+
+    if (!visible) {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginTabBar("InspectorTabs")) {
+        if (ImGui::BeginTabItem("Scene")) {
+            scenePanel_->DrawContent();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+
+    ImGui::End();
 }
 
 } // namespace Debugger3DS

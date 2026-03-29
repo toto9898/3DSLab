@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(3DSLab)
 
 # Set C++20 standard
@@ -8,33 +8,159 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Generate compile_commands.json for better IntelliSense
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+# ──────────────────────────────────────────────────────────
+# Dependencies via FetchContent
+# ──────────────────────────────────────────────────────────
+include(FetchContent)
 
-# Libigl
-include(libigl)
+# ── bgfx (via bgfx.cmake wrapper) ─────────────────────────
+set(BGFX_BUILD_TOOLS      ON  CACHE BOOL "" FORCE)
+set(BGFX_BUILD_EXAMPLES   OFF CACHE BOOL "" FORCE)
+set(BGFX_BUILD_TESTS      OFF CACHE BOOL "" FORCE)
+set(BGFX_INSTALL           OFF CACHE BOOL "" FORCE)
+set(BGFX_CUSTOM_TARGETS    OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    bgfx_cmake
+    GIT_REPOSITORY https://github.com/bkaradzic/bgfx.cmake.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+    PATCH_COMMAND  ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch_bgfx.cmake
+)
+FetchContent_MakeAvailable(bgfx_cmake)
 
-# Enable the target igl::glfw
-igl_include(glfw)
-# Other modules you could enable
-#igl_include(embree)
-igl_include(imgui)
-igl_include(opengl)
-#igl_include(stb)
-#igl_include(predicates)
-#igl_include(xml)
-#igl_include(copyleft cgal)
-#igl_include(copyleft comiso)
-#igl_include(copyleft core)
-#igl_include(copyleft cork)
-#igl_include(copyleft tetgen)
-#igl_include(restricted matlab)
-#igl_include(restricted mosek)
-#igl_include(restricted triangle)
+# ── GLFW ───────────────────────────────────────────────────
+set(GLFW_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL        OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(glfw)
 
-# Add your project files explicitly with relative paths
+# ── Dear ImGui ─────────────────────────────────────────────
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.91.8
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+# Build ImGui as a static library with the GLFW backend
+set(IMGUI_SRC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+)
+add_library(imgui_lib STATIC ${IMGUI_SRC})
+target_include_directories(imgui_lib PUBLIC 
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+target_link_libraries(imgui_lib PUBLIC glfw)
+
+# ── Eigen ──────────────────────────────────────────────────
+FetchContent_Declare(
+    eigen
+    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+    GIT_TAG        5.0.1
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(eigen)
+
+# ──────────────────────────────────────────────────────────
+# Shader compilation (embedded as C headers)
+# ──────────────────────────────────────────────────────────
+set(SHADER_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated/shaders)
+
+# Include bgfx tool utilities for shader compilation
+include(${bgfx_cmake_SOURCE_DIR}/cmake/bgfxToolUtils.cmake)
+
+# Mesh shaders
+bgfx_compile_shaders(
+    TYPE VERTEX
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_mesh.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR VS_MESH_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+bgfx_compile_shaders(
+    TYPE FRAGMENT
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_mesh.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR FS_MESH_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+# ImGui shaders
+bgfx_compile_shaders(
+    TYPE VERTEX
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_imgui.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying_imgui.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR VS_IMGUI_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+bgfx_compile_shaders(
+    TYPE FRAGMENT
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_imgui.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying_imgui.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR FS_IMGUI_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+# Line shaders (unlit, position + color only)
+bgfx_compile_shaders(
+    TYPE VERTEX
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_line.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying_line.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR VS_LINE_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+bgfx_compile_shaders(
+    TYPE FRAGMENT
+    SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_line.sc
+    VARYING_DEF ${CMAKE_CURRENT_SOURCE_DIR}/shaders/varying_line.def.sc
+    OUTPUT_DIR ${SHADER_OUTPUT_DIR}
+    OUT_FILES_VAR FS_LINE_OUTPUTS
+    AS_HEADERS
+    INCLUDE_DIRS ${BGFX_DIR}/src
+)
+
+set(ALL_SHADER_OUTPUTS
+    ${VS_MESH_OUTPUTS} ${FS_MESH_OUTPUTS}
+    ${VS_IMGUI_OUTPUTS} ${FS_IMGUI_OUTPUTS}
+    ${VS_LINE_OUTPUTS} ${FS_LINE_OUTPUTS}
+)
+
+# ──────────────────────────────────────────────────────────
+# Project source files
+# ──────────────────────────────────────────────────────────
 set(SRC_FILES
     src/main.cpp
     src/Rendering/Application.cpp
+    src/Rendering/Renderer.cpp
+    src/Rendering/Window.cpp
+    src/Rendering/imgui_impl_bgfx.cpp
     src/Rendering/MeshSelector.cpp
     src/Rendering/CameraController.cpp
     src/Rendering/MeshUploader.cpp
@@ -65,19 +191,7 @@ set(SRC_FILES
     src/UI/SceneTreePanel.cpp
 )
 
-add_executable(${PROJECT_NAME} ${SRC_FILES})
-
-# Fix: GLFW's cmake emits /clang:-Wall (a clang-cl flag) but the glfw target is
-# compiled by clang.exe on this toolchain, which rejects it as an unknown file.
-# Replace it with the plain -Wall that clang.exe understands.
-if(TARGET glfw)
-    get_target_property(_glfw_opts glfw COMPILE_OPTIONS)
-    if(_glfw_opts)
-        list(REMOVE_ITEM _glfw_opts "/clang:-Wall")
-        list(APPEND _glfw_opts "-Wall")
-        set_property(TARGET glfw PROPERTY COMPILE_OPTIONS "${_glfw_opts}")
-    endif()
-endif()
+add_executable(${PROJECT_NAME} ${SRC_FILES} ${ALL_SHADER_OUTPUTS})
 
 # Add include directories for headers
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -90,28 +204,18 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Scene/Animation
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Rendering
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UI
+    ${SHADER_OUTPUT_DIR}
 )
 
-# Prevent Windows.h from defining min/max macros (conflicts with std::min/std::max in libigl)
-target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+# Prevent Windows.h from defining min/max macros; disable WGSL shader embedding
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX _USE_MATH_DEFINES BGFX_PLATFORM_SUPPORTS_WGSL=0)
 
-# Link igl (and the glfw module) to your project
-target_link_libraries(${PROJECT_NAME} PUBLIC 
-  igl::glfw
-  igl::opengl
-  igl::imgui
-  ## Other modules you could link to
-  # igl::embree
-  # igl::opengl
-  # igl::stb
-  # igl::predicates
-  # igl::xml
-  # igl_copyleft::cgal
-  # igl_copyleft::comiso
-  # igl_copyleft::core
-  # igl_copyleft::cork
-  # igl_copyleft::tetgen
-  # igl_restricted::matlab
-  # igl_restricted::mosek
-  # igl_restricted::triangle
-  )
+# Link dependencies
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    bgfx
+    bx
+    bimg
+    glfw
+    imgui_lib
+    Eigen3::Eigen
+)

@@ -1,370 +1,297 @@
 #include "MeshSelector.h"
-#include <igl/unproject_onto_mesh.h>
-#include <igl/unproject.h>
+#include "Renderer.h"
+#include "CameraController.h"
+#include "Window.h"
 #include <imgui.h>
 #include <iostream>
+#include <cmath>
+#include <limits>
 
 namespace Debugger3DS {
 
-MeshSelector::MeshSelector(igl::opengl::glfw::Viewer& viewer)
-    : viewer_(viewer), selectedMeshId_(-1), currentIndex_(-1), 
-      isDragging_(false), mouseDownX_(0), mouseDownY_(0) {
+void MeshSelector::Init(Renderer& renderer, CameraController& camera) {
+    renderer_ = &renderer;
+    camera_ = &camera;
 }
 
-void MeshSelector::AddMesh(int dataId, std::any userData, const std::string& name, const AABB& bbox) {
-    meshIds_.push_back(dataId);
+void MeshSelector::AddMesh(int meshId, std::any userData, uint32_t color, const std::string& name, const AABB& bbox) {
+    meshIds_.push_back(meshId);
     userData_.push_back(std::move(userData));
-    meshNames_.push_back(name.empty() ? "Mesh " + std::to_string(dataId) : name);
+    meshNames_.push_back(name.empty() ? "Mesh " + std::to_string(meshId) : name);
     meshBBoxes_.push_back(bbox);
-    
-    // Store original colors for this mesh
-    originalColors_[dataId] = viewer_.data(dataId).V_material_diffuse;
+    originalColors_.push_back(color);
 }
 
-void MeshSelector::AddMeshWithTransform(int dataId, std::any userData, const std::string& name,
+void MeshSelector::AddMeshWithTransform(int meshId, std::any userData, uint32_t color, const std::string& name,
                                          const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                          const Eigen::Matrix4f& transform) {
-    // Transform the 8 corners of the bounding box
     Eigen::Vector3f corners[8] = {
         bboxMin,
-        Eigen::Vector3f(bboxMax.x(), bboxMin.y(), bboxMin.z()),
-        Eigen::Vector3f(bboxMin.x(), bboxMax.y(), bboxMin.z()),
-        Eigen::Vector3f(bboxMax.x(), bboxMax.y(), bboxMin.z()),
-        Eigen::Vector3f(bboxMin.x(), bboxMin.y(), bboxMax.z()),
-        Eigen::Vector3f(bboxMax.x(), bboxMin.y(), bboxMax.z()),
-        Eigen::Vector3f(bboxMin.x(), bboxMax.y(), bboxMax.z()),
+        {bboxMax.x(), bboxMin.y(), bboxMin.z()},
+        {bboxMin.x(), bboxMax.y(), bboxMin.z()},
+        {bboxMax.x(), bboxMax.y(), bboxMin.z()},
+        {bboxMin.x(), bboxMin.y(), bboxMax.z()},
+        {bboxMax.x(), bboxMin.y(), bboxMax.z()},
+        {bboxMin.x(), bboxMax.y(), bboxMax.z()},
         bboxMax
     };
-    
-    // Find new axis-aligned bounds after transformation
-    Eigen::Vector3d transformedMin(std::numeric_limits<double>::max(),
-                                   std::numeric_limits<double>::max(),
-                                   std::numeric_limits<double>::max());
-    Eigen::Vector3d transformedMax(std::numeric_limits<double>::lowest(),
-                                   std::numeric_limits<double>::lowest(),
-                                   std::numeric_limits<double>::lowest());
-    
+
+    Eigen::Vector3d tMin(std::numeric_limits<double>::max(),
+                         std::numeric_limits<double>::max(),
+                         std::numeric_limits<double>::max());
+    Eigen::Vector3d tMax(std::numeric_limits<double>::lowest(),
+                         std::numeric_limits<double>::lowest(),
+                         std::numeric_limits<double>::lowest());
+
     for (int c = 0; c < 8; ++c) {
-        Eigen::Vector4f homogeneous(corners[c].x(), corners[c].y(), corners[c].z(), 1.0f);
-        Eigen::Vector4f transformed = transform * homogeneous;
-        Eigen::Vector3d transformedCorner = transformed.head<3>().cast<double>();
-        
-        transformedMin = transformedMin.cwiseMin(transformedCorner);
-        transformedMax = transformedMax.cwiseMax(transformedCorner);
+        Eigen::Vector4f h(corners[c].x(), corners[c].y(), corners[c].z(), 1.0f);
+        Eigen::Vector4f t = transform * h;
+        Eigen::Vector3d tc = t.head<3>().cast<double>();
+        tMin = tMin.cwiseMin(tc);
+        tMax = tMax.cwiseMax(tc);
     }
-    
-    AABB bbox(transformedMin, transformedMax);
-    AddMesh(dataId, std::move(userData), name, bbox);
+
+    AABB bbox(tMin, tMax);
+    AddMesh(meshId, std::move(userData), color, name, bbox);
 }
 
 std::string MeshSelector::GetMeshName(int index) const {
-    if (index >= 0 && index < meshNames_.size()) {
+    if (index >= 0 && index < static_cast<int>(meshNames_.size()))
         return meshNames_[index];
-    }
     return "";
 }
 
-void MeshSelector::SelectMesh(int dataId) {
-    // Find index of this mesh
-    auto it = std::find(meshIds_.begin(), meshIds_.end(), dataId);
-    if (it != meshIds_.end()) {
-        int index = std::distance(meshIds_.begin(), it);
-        
-        // Toggle selection: if clicking the same mesh, deselect it
-        if (selectedMeshId_ == dataId && additionalSelectedIds_.empty()) {
-            std::cout << "Deselected: " << meshNames_[index] << std::endl;
-            ClearSelection();
-        } else {
-            // Clear any multi-selection first
+void MeshSelector::SetSelectionCallback(std::function<void(const std::any&)> callback) {
+    selectionCallback_ = std::move(callback);
+}
+
+void MeshSelector::ProcessInput(const InputState& input, uint16_t viewportW, uint16_t viewportH) {
+    // Keyboard: N/P/C
+    if (input.lastKey == GLFW_KEY_N && !input.keyConsumed && !ImGui::GetIO().WantCaptureKeyboard) {
+        if (!meshIds_.empty()) {
+            currentIndex_ = (currentIndex_ + 1) % static_cast<int>(meshIds_.size());
+            selectedMeshId_ = meshIds_[currentIndex_];
+            selectedUserData_ = userData_[currentIndex_];
             additionalSelectedIds_.clear();
-            currentIndex_ = index;
-            selectedMeshId_ = dataId;
-            selectedUserData_ = userData_[index];
-            std::cout << "Selected: " << meshNames_[currentIndex_] 
-                      << " (ID: " << selectedMeshId_ << ")" << std::endl;
+            std::cout << "Selected: " << meshNames_[currentIndex_] << " (ID: " << selectedMeshId_ << ")" << std::endl;
             HighlightSelected();
-            
-            if (selectionCallback_) {
-                selectionCallback_(selectedUserData_);
-            }
+            if (selectionCallback_) selectionCallback_(selectedUserData_);
+        }
+    }
+    if (input.lastKey == GLFW_KEY_P && !input.keyConsumed && !ImGui::GetIO().WantCaptureKeyboard) {
+        if (!meshIds_.empty()) {
+            currentIndex_ = (currentIndex_ - 1 + static_cast<int>(meshIds_.size())) % static_cast<int>(meshIds_.size());
+            selectedMeshId_ = meshIds_[currentIndex_];
+            selectedUserData_ = userData_[currentIndex_];
+            additionalSelectedIds_.clear();
+            std::cout << "Selected: " << meshNames_[currentIndex_] << " (ID: " << selectedMeshId_ << ")" << std::endl;
+            HighlightSelected();
+            if (selectionCallback_) selectionCallback_(selectedUserData_);
+        }
+    }
+    if (input.lastKey == GLFW_KEY_C && !input.keyConsumed && !ImGui::GetIO().WantCaptureKeyboard) {
+        ClearSelection();
+        std::cout << "Selection cleared" << std::endl;
+    }
+
+    // Mouse click detection
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
+    if (input.mouseJustPressed[0]) {
+        isDragging_ = false;
+        mouseDownX_ = input.mouseX;
+        mouseDownY_ = input.mouseY;
+    }
+
+    // Detect drag
+    if (input.mouseButtons[0]) {
+        double dx = input.mouseX - mouseDownX_;
+        double dy = input.mouseY - mouseDownY_;
+        if (std::sqrt(dx * dx + dy * dy) > 5.0)
+            isDragging_ = true;
+    }
+
+    if (input.mouseJustReleased[0] && !isDragging_) {
+        int hitMeshId = FindMeshUnderCursor(input.mouseX, input.mouseY, viewportW, viewportH);
+        if (hitMeshId >= 0) {
+            SelectMesh(hitMeshId);
+        } else if (selectedMeshId_ >= 0) {
+            ClearSelection();
+            std::cout << "Selection cleared (clicked empty space)" << std::endl;
         }
     }
 }
 
-void MeshSelector::EnableSelection() {
-    // Setup keyboard callback for cycling through meshes
-    viewer_.callback_key_pressed = [this](igl::opengl::glfw::Viewer& v, unsigned int key, int mod) {
-        return OnKeyPressed(key, mod);
-    };
-    
-    // Setup mouse callbacks for clicking on meshes
-    viewer_.callback_mouse_down = [this](igl::opengl::glfw::Viewer& v, int button, int mod) {
-        return OnMouseDown(button, mod);
-    };
-    
-    viewer_.callback_mouse_up = [this](igl::opengl::glfw::Viewer& v, int button, int mod) {
-        return OnMouseUp(button, mod);
-    };
-    
-    viewer_.callback_mouse_move = [this](igl::opengl::glfw::Viewer& v, int mouse_x, int mouse_y) {
-        return OnMouseMove(mouse_x, mouse_y);
-    };
+void MeshSelector::SelectMesh(int meshId) {
+    auto it = std::find(meshIds_.begin(), meshIds_.end(), meshId);
+    if (it == meshIds_.end()) return;
+
+    int index = static_cast<int>(std::distance(meshIds_.begin(), it));
+
+    if (selectedMeshId_ == meshId && additionalSelectedIds_.empty()) {
+        std::cout << "Deselected: " << meshNames_[index] << std::endl;
+        ClearSelection();
+    } else {
+        additionalSelectedIds_.clear();
+        currentIndex_ = index;
+        selectedMeshId_ = meshId;
+        selectedUserData_ = userData_[index];
+        std::cout << "Selected: " << meshNames_[currentIndex_] << " (ID: " << selectedMeshId_ << ")" << std::endl;
+        HighlightSelected();
+        if (selectionCallback_) selectionCallback_(selectedUserData_);
+    }
 }
 
-void MeshSelector::DisableSelection() {
-    viewer_.callback_key_pressed = nullptr;
-    viewer_.callback_mouse_down = nullptr;
-    viewer_.callback_mouse_up = nullptr;
-    viewer_.callback_mouse_move = nullptr;
-}
-
-void MeshSelector::SetSelectionCallback(std::function<void(const std::any&)> callback) {
-    selectionCallback_ = callback;
-}
-
-void MeshSelector::SelectMeshes(const std::vector<int>& dataIds, bool fireCallback) {
+void MeshSelector::SelectMeshes(const std::vector<int>& meshIds, bool fireCallback) {
     // Reset all meshes first
     for (size_t i = 0; i < meshIds_.size(); ++i) {
-        int id = meshIds_[i];
-        if (originalColors_.find(id) != originalColors_.end())
-            viewer_.data(id).set_colors(originalColors_[id]);
+        if (renderer_) renderer_->SetMeshColor(meshIds_[i], originalColors_[i]);
     }
     additionalSelectedIds_.clear();
 
-    if (dataIds.empty()) {
+    if (meshIds.empty()) {
         ClearSelection();
         return;
     }
 
-    // First id becomes primary selection
-    selectedMeshId_ = dataIds[0];
-    auto it2 = std::find(meshIds_.begin(), meshIds_.end(), dataIds[0]);
-    if (it2 != meshIds_.end()) {
-        currentIndex_ = std::distance(meshIds_.begin(), it2);
+    selectedMeshId_ = meshIds[0];
+    auto it = std::find(meshIds_.begin(), meshIds_.end(), meshIds[0]);
+    if (it != meshIds_.end()) {
+        currentIndex_ = static_cast<int>(std::distance(meshIds_.begin(), it));
         selectedUserData_ = userData_[currentIndex_];
     }
 
-    // Rest are additional
-    for (size_t i = 1; i < dataIds.size(); ++i)
-        additionalSelectedIds_.push_back(dataIds[i]);
+    for (size_t i = 1; i < meshIds.size(); ++i)
+        additionalSelectedIds_.push_back(meshIds[i]);
 
     HighlightSelected();
-
-    if (fireCallback && selectionCallback_)
-        selectionCallback_(selectedUserData_);
+    if (fireCallback && selectionCallback_) selectionCallback_(selectedUserData_);
 }
 
 void MeshSelector::HighlightSelected() {
-    if (selectedMeshId_ < 0 || meshIds_.empty()) {
-        return;
-    }
-    
-    // Reset all meshes to original colors (deselect previous)
+    if (!renderer_ || selectedMeshId_ < 0 || meshIds_.empty()) return;
+
+    // Make all non-selected meshes semi-transparent with their original color
     for (size_t i = 0; i < meshIds_.size(); ++i) {
-        int id = meshIds_[i];
-        if (originalColors_.find(id) != originalColors_.end()) {
-            viewer_.data(id).set_colors(originalColors_[id]);
-        }
+        uint32_t color = originalColors_[i];
+        // Set alpha to ~50% (replace high byte with 0x80)
+        uint32_t halfAlpha = (color & 0x00FFFFFFu) | (0x80u << 24);
+        renderer_->SetMeshColor(meshIds_[i], halfAlpha);
+        renderer_->SetMeshTransparent(meshIds_[i], true);
     }
-    
-    // Highlight selected mesh with yellow
-    viewer_.data(selectedMeshId_).set_colors(Eigen::RowVector3d(1.0, 1.0, 0.0));
-    // Highlight additional selected meshes
-    for (int id : additionalSelectedIds_)
-        viewer_.data(id).set_colors(Eigen::RowVector3d(1.0, 1.0, 0.0));
+
+    // Highlight selected with yellow (fully opaque)
+    uint32_t yellow = Renderer::PackColor(1.0f, 1.0f, 0.0f);
+    renderer_->SetMeshColor(selectedMeshId_, yellow);
+    renderer_->SetMeshTransparent(selectedMeshId_, false);
+    for (int id : additionalSelectedIds_) {
+        renderer_->SetMeshColor(id, yellow);
+        renderer_->SetMeshTransparent(id, false);
+    }
 }
 
 void MeshSelector::ClearSelection() {
-    // Restore all highlighted meshes to original colors
-    for (size_t i = 0; i < meshIds_.size(); ++i) {
-        int id = meshIds_[i];
-        if (originalColors_.find(id) != originalColors_.end())
-            viewer_.data(id).set_colors(originalColors_[id]);
+    if (renderer_) {
+        for (size_t i = 0; i < meshIds_.size(); ++i) {
+            renderer_->SetMeshColor(meshIds_[i], originalColors_[i]);
+            renderer_->SetMeshTransparent(meshIds_[i], false);
+        }
     }
     additionalSelectedIds_.clear();
-    
     selectedUserData_.reset();
     selectedMeshId_ = -1;
     currentIndex_ = -1;
-    
-    if (selectionCallback_) {
-        selectionCallback_(std::any{});
-    }
+    if (selectionCallback_) selectionCallback_(std::any{});
 }
 
-bool MeshSelector::OnKeyPressed(unsigned int key, int modifier) {
-    // N key - next mesh
-    if (key == 'N' || key == 'n') {
-        if (meshIds_.empty()) return false;
-        
-        currentIndex_ = (currentIndex_ + 1) % meshIds_.size();
-        selectedMeshId_ = meshIds_[currentIndex_];
-        selectedUserData_ = userData_[currentIndex_];
-        
-        std::cout << "Selected: " << meshNames_[currentIndex_] 
-                  << " (ID: " << selectedMeshId_ << ")" << std::endl;
-        
-        HighlightSelected();
-        
-        if (selectionCallback_) {
-            selectionCallback_(selectedUserData_);
-        }
-        
-        return true;
-    }
-    
-    // P key - previous mesh
-    if (key == 'P' || key == 'p') {
-        if (meshIds_.empty()) return false;
-        
-        currentIndex_ = (currentIndex_ - 1 + meshIds_.size()) % meshIds_.size();
-        selectedMeshId_ = meshIds_[currentIndex_];
-        selectedUserData_ = userData_[currentIndex_];
-        
-        std::cout << "Selected: " << meshNames_[currentIndex_] 
-                  << " (ID: " << selectedMeshId_ << ")" << std::endl;
-        
-        HighlightSelected();
-        
-        if (selectionCallback_) {
-            selectionCallback_(selectedUserData_);
-        }
-        
-        return true;
-    }
-    
-    // C key - clear selection
-    if (key == 'C' || key == 'c') {
-        ClearSelection();
-        std::cout << "Selection cleared" << std::endl;
-        return true;
-    }
-    
-    return false;
-}
+int MeshSelector::FindMeshUnderCursor(double mouseX, double mouseY, uint16_t viewportW, uint16_t viewportH) {
+    if (!renderer_ || !camera_) return -1;
 
-bool MeshSelector::OnMouseDown(int button, int modifier) {
-    // Don't start selection when ImGui wants the mouse (clicking UI elements)
-    if (ImGui::GetIO().WantCaptureMouse)
-        return false;
+    float aspect = static_cast<float>(viewportW) / static_cast<float>(viewportH);
+    bool hmgDepth = renderer_->IsHomogeneousDepth();
+    Eigen::Matrix4f view = camera_->GetViewMatrix();
+    Eigen::Matrix4f proj = camera_->GetProjectionMatrix(aspect, hmgDepth);
 
-    // Left click - record position to detect drag vs click
-    if (button == 0) { // Left mouse button
-        isDragging_ = false;
-        mouseDownX_ = viewer_.current_mouse_x;
-        mouseDownY_ = viewer_.current_mouse_y;
-    }
-    
-    // Always return false to allow rotation to work
-    return false;
-}
-
-bool MeshSelector::OnMouseUp(int button, int modifier) {
-    if (ImGui::GetIO().WantCaptureMouse)
-        return false;
-
-    // Left click released - check if it was a click (not a drag)
-    if (button == 0) { // Left mouse button
-        if (!isDragging_) {
-            // This was a click, not a drag - perform selection
-            int hitMeshId = FindMeshUnderCursor();
-            if (hitMeshId >= 0) {
-                SelectMesh(hitMeshId);
-            } else if (selectedMeshId_ >= 0) {
-                // Clicked on empty space, clear selection
-                ClearSelection();
-                std::cout << "Selection cleared (clicked empty space)" << std::endl;
-            }
-        }
-        isDragging_ = false;
-    }
-    
-    // Always return false to allow default behavior
-    return false;
-}
-
-bool MeshSelector::OnMouseMove(int mouse_x, int mouse_y) {
-    // Detect if mouse moved significantly from mouseDown position
-    const double dragThreshold = 5.0; // pixels
-    double dx = mouse_x - mouseDownX_;
-    double dy = mouse_y - mouseDownY_;
-    double distance = std::sqrt(dx * dx + dy * dy);
-    
-    if (distance > dragThreshold) {
-        isDragging_ = true;
-    }
-    
-    // Always return false to allow rotation
-    return false;
-}
-
-int MeshSelector::FindMeshUnderCursor() {
-    // Get mouse position
-    double x = viewer_.current_mouse_x;
-    double y = viewer_.core().viewport(3) - viewer_.current_mouse_y;
-    
     // Compute ray in world space
     Eigen::Vector3f pos1, pos2;
-    igl::unproject(
-        Eigen::Vector3f(x, y, 0.0f),
-        viewer_.core().view,
-        viewer_.core().proj,
-        viewer_.core().viewport,
-        pos1
-    );
-    igl::unproject(
-        Eigen::Vector3f(x, y, 1.0f),
-        viewer_.core().view,
-        viewer_.core().proj,
-        viewer_.core().viewport,
-        pos2
-    );
-    
+    // Flip Y for screen coords (GLFW y=0 at top, NDC y=-1 at bottom)
+    double flippedY = viewportH - mouseY;
+    Unproject(mouseX, flippedY, 0.0, view, proj, viewportW, viewportH, hmgDepth, pos1);
+    Unproject(mouseX, flippedY, 1.0, view, proj, viewportW, viewportH, hmgDepth, pos2);
+
     Eigen::Vector3d rayOrigin = pos1.cast<double>();
     Eigen::Vector3d rayDir = (pos2 - pos1).normalized().cast<double>();
-    
+
     int closestMeshId = -1;
     double minDepth = std::numeric_limits<double>::max();
-    
-    // Test ray intersection with each mesh
+
     for (size_t i = 0; i < meshIds_.size(); ++i) {
         int meshId = meshIds_[i];
-        int fid;
-        Eigen::Vector3f bc;
-        
-        // Unproject mouse coordinates onto this mesh
-        bool hit = igl::unproject_onto_mesh(
-            Eigen::Vector2f(x, y),
-            viewer_.core().view,
-            viewer_.core().proj,
-            viewer_.core().viewport,
-            viewer_.data(meshId).V,
-            viewer_.data(meshId).F,
-            fid,
-            bc
-        );
-        
-        if (hit) {
-            // Calculate hit point depth
-            Eigen::Vector3d hitPoint = 
-                bc(0) * viewer_.data(meshId).V.row(viewer_.data(meshId).F(fid, 0)) +
-                bc(1) * viewer_.data(meshId).V.row(viewer_.data(meshId).F(fid, 1)) +
-                bc(2) * viewer_.data(meshId).V.row(viewer_.data(meshId).F(fid, 2));
-            
-            // Transform to camera space to get depth
-            Eigen::Vector4d hitPoint4(hitPoint.x(), hitPoint.y(), hitPoint.z(), 1.0);
-            Eigen::Vector4d camSpace = viewer_.core().view.cast<double>() * hitPoint4;
-            double depth = -camSpace(2); // Negative Z is forward in camera space
-            
-            // Keep track of closest hit
-            if (depth < minDepth) {
-                minDepth = depth;
-                closestMeshId = meshId;
+        const GpuMesh* mesh = renderer_->GetMesh(meshId);
+        if (!mesh || mesh->V.rows() == 0) continue;
+
+        // Test each triangle
+        for (int f = 0; f < mesh->F.rows(); ++f) {
+            Eigen::Vector3d v0 = mesh->V.row(mesh->F(f, 0)).transpose();
+            Eigen::Vector3d v1 = mesh->V.row(mesh->F(f, 1)).transpose();
+            Eigen::Vector3d v2 = mesh->V.row(mesh->F(f, 2)).transpose();
+
+            double t, u, v;
+            if (RayTriangleIntersect(rayOrigin, rayDir, v0, v1, v2, t, u, v)) {
+                if (t > 0 && t < minDepth) {
+                    minDepth = t;
+                    closestMeshId = meshId;
+                }
             }
         }
     }
-    
+
     return closestMeshId;
+}
+
+void MeshSelector::Unproject(double screenX, double screenY, double depth,
+                              const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj,
+                              uint16_t viewportW, uint16_t viewportH,
+                              bool homogeneousDepth,
+                              Eigen::Vector3f& worldPos) {
+    // NDC coordinates
+    float ndcX = static_cast<float>((2.0 * screenX / viewportW) - 1.0);
+    float ndcY = static_cast<float>((2.0 * screenY / viewportH) - 1.0);
+    // Homogeneous depth: NDC z in [-1,1], otherwise [0,1]
+    float ndcZ = homogeneousDepth
+        ? static_cast<float>(2.0 * depth - 1.0)
+        : static_cast<float>(depth);
+
+    Eigen::Matrix4f invVP = (proj * view).inverse();
+    Eigen::Vector4f ndc(ndcX, ndcY, ndcZ, 1.0f);
+    Eigen::Vector4f world = invVP * ndc;
+
+    worldPos = world.head<3>() / world.w();
+}
+
+bool MeshSelector::RayTriangleIntersect(const Eigen::Vector3d& origin, const Eigen::Vector3d& dir,
+                                         const Eigen::Vector3d& v0, const Eigen::Vector3d& v1,
+                                         const Eigen::Vector3d& v2,
+                                         double& t, double& u, double& v) {
+    constexpr double EPSILON = 1e-8;
+    Eigen::Vector3d e1 = v1 - v0;
+    Eigen::Vector3d e2 = v2 - v0;
+    Eigen::Vector3d h = dir.cross(e2);
+    double a = e1.dot(h);
+
+    if (a > -EPSILON && a < EPSILON) return false;
+
+    double f = 1.0 / a;
+    Eigen::Vector3d s = origin - v0;
+    u = f * s.dot(h);
+    if (u < 0.0 || u > 1.0) return false;
+
+    Eigen::Vector3d q = s.cross(e1);
+    v = f * dir.dot(q);
+    if (v < 0.0 || u + v > 1.0) return false;
+
+    t = f * e2.dot(q);
+    return t > EPSILON;
 }
 
 } // namespace Debugger3DS
