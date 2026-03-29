@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(example)
+project(3DSLab)
 
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
@@ -34,33 +34,35 @@ igl_include(opengl)
 # Add your project files explicitly with relative paths
 set(SRC_FILES
     src/main.cpp
-    src/Application.cpp
-    src/MeshSelector.cpp
-    src/3DS/Importer.cpp
-    src/3DS/Scene.cpp
-    src/3DS/SceneObjects/Mesh.cpp
-    src/3DS/Chunks/Chunk.cpp
-    src/3DS/Chunks/ChunkRegistration.cpp
-    src/3DS/Chunks/ColorChunks.cpp
-    src/3DS/Chunks/FaceArrayChunk.cpp
-    src/3DS/Chunks/M3dVersionChunk.cpp
-    src/3DS/Chunks/MasterScaleChunk.cpp
-    src/3DS/Chunks/MaterialChunks.cpp
-    src/3DS/Chunks/PercentageChunk.cpp
-    src/3DS/Chunks/MeshMatrixChunk.cpp
-    src/3DS/Chunks/MeshVersionChunk.cpp
-    src/3DS/Chunks/MshMatGroupChunk.cpp
-    src/3DS/Chunks/NamedObjectChunk.cpp
-    src/3DS/Chunks/NodeHdrChunk.cpp
-    src/3DS/Chunks/NTriObjectChunk.cpp
-    src/3DS/Chunks/PointArrayChunk.cpp
-    src/3DS/Chunks/TexVertsChunk.cpp
-    src/3DS/Chunks/SmoothGroupChunk.cpp
-    src/3DS/Chunks/KeyframeChunks.cpp
-    src/3DS/Chunks/ObjectNodeChunks.cpp
-    src/3DS/SceneObjects/ObjectNode.cpp
-    src/3DS/Animation/AnimationHeaders.cpp
-    src/3DS/UI/SceneTreePanel.cpp
+    src/Rendering/Application.cpp
+    src/Rendering/MeshSelector.cpp
+    src/Rendering/CameraController.cpp
+    src/Rendering/MeshUploader.cpp
+    src/Parser/Importer.cpp
+    src/Scene/Scene.cpp
+    src/Scene/Mesh.cpp
+    src/Scene/ObjectNode.cpp
+    src/Scene/Animation/AnimationHeaders.cpp
+    src/Parser/Chunks/Chunk.cpp
+    src/Parser/Chunks/ChunkRegistration.cpp
+    src/Parser/Chunks/ColorChunks.cpp
+    src/Parser/Chunks/FaceArrayChunk.cpp
+    src/Parser/Chunks/M3dVersionChunk.cpp
+    src/Parser/Chunks/MasterScaleChunk.cpp
+    src/Parser/Chunks/MaterialChunks.cpp
+    src/Parser/Chunks/PercentageChunk.cpp
+    src/Parser/Chunks/MeshMatrixChunk.cpp
+    src/Parser/Chunks/MeshVersionChunk.cpp
+    src/Parser/Chunks/MshMatGroupChunk.cpp
+    src/Parser/Chunks/NamedObjectChunk.cpp
+    src/Parser/Chunks/NodeHdrChunk.cpp
+    src/Parser/Chunks/NTriObjectChunk.cpp
+    src/Parser/Chunks/PointArrayChunk.cpp
+    src/Parser/Chunks/TexVertsChunk.cpp
+    src/Parser/Chunks/SmoothGroupChunk.cpp
+    src/Parser/Chunks/KeyframeChunks.cpp
+    src/Parser/Chunks/ObjectNodeChunks.cpp
+    src/UI/SceneTreePanel.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
@@ -81,10 +83,13 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/3DS
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/3DS/Chunks
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/3DS/SceneObjects
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/3DS/Animation
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Parser/Chunks
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Scene
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Scene/Animation
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rendering
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/UI
 )
 
 # Prevent Windows.h from defining min/max macros (conflicts with std::min/std::max in libigl)
