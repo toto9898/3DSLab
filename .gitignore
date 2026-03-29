@@ -31,7 +31,14 @@
 *.swo
 *.swp
 
-build*/*
+# Build directories
+build*/
+
+# IDE / editor
+.vscode/
+.vs/
+*.user
+imgui.ini
 
 # temp files
 temp/*
