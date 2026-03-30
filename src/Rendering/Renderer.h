@@ -47,6 +47,8 @@ struct GpuMesh {
     // We also store V/F for ray casting
     Eigen::MatrixXd V;
     Eigen::MatrixXi F;
+    // Per-vertex smooth normals (rows == V.rows(), 3 cols)
+    Eigen::MatrixXf N;
 };
 
 class Renderer {
@@ -86,6 +88,10 @@ public:
 
     // Set light direction, camera position, specular power, and global intensity for Phong shading
     void SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower = 32.0f, float lightIntensity = 1.0f);
+    // Enable or disable double-sided normals globally
+    void SetDoubleSided(bool enabled);
+    // Draw all meshes (opaque first, then transparent sorted back-to-front)
+    void DrawAllMeshes(const Eigen::Vector3f& eyePos);
 
     // Access stored mesh data for ray casting
     const GpuMesh* GetMesh(int meshId) const;
@@ -111,9 +117,11 @@ private:
     bgfx::UniformHandle u_lightDir_  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_eyePos_    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_lightIntensity_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle u_doubleSided_ = BGFX_INVALID_HANDLE;
     float lightDir_[4] = { 0.3f, 1.0f, 0.5f, 0.0f };
     float eyePos_[4]   = { 0.0f, 0.0f, 5.0f, 32.0f };
     float lightIntensity_[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    float doubleSided_[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     std::vector<GpuMesh> meshes_;
     bool initialized_ = false;

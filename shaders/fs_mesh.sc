@@ -5,6 +5,7 @@ $input v_color0, v_normal, v_worldPos
 uniform vec4 u_lightDir;   // xyz = light direction (toward light), w unused
 uniform vec4 u_eyePos;     // xyz = camera position, w = specular power
 uniform vec4 u_lightIntensity; // x = global light intensity multiplier
+uniform vec4 u_doubleSided; // x = 1.0 -> enable two-sided normals
 
 // Convert sRGB color to linear space (accurate piecewise sRGB curve)
 vec3 srgb_to_linear(vec3 c)
@@ -32,6 +33,10 @@ void main()
     vec3 L = normalize(u_lightDir.xyz);
     vec3 V = normalize(u_eyePos.xyz - v_worldPos);
     vec3 H = normalize(L + V);
+
+    // Optionally treat normals as double-sided by flipping normals that point away from the view
+    if (u_doubleSided.x > 0.5 && dot(N, V) < 0.0)
+        N = -N;
 
     // Read vertex color (assumed sRGB) and convert to linear for lighting
     vec3 color_srgb = v_color0.rgb;

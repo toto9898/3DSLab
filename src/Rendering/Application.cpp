@@ -132,9 +132,8 @@ void Application::Run() {
         Eigen::Vector3f lightDir = Eigen::Vector3f(0.3f, 1.0f, 0.5f).normalized();
         renderer_.SetLightUniforms(lightDir, camera_.GetEyePosition());
 
-        // Draw all meshes
-        for (int i = 0; i < renderer_.GetMeshCount(); ++i)
-            renderer_.DrawMesh(i);
+        // Draw all meshes (opaque first, then transparent sorted back-to-front)
+        renderer_.DrawAllMeshes(camera_.GetEyePosition());
 
         // Draw coordinate axes
         renderer_.DrawLines(axisLines_);
