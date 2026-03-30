@@ -84,8 +84,8 @@ public:
     // Set the view and projection matrices for the current frame
     void SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj);
 
-    // Set light direction and camera position for Phong shading
-    void SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower = 32.0f);
+    // Set light direction, camera position, specular power, and global intensity for Phong shading
+    void SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower = 32.0f, float lightIntensity = 1.0f);
 
     // Access stored mesh data for ray casting
     const GpuMesh* GetMesh(int meshId) const;
@@ -110,8 +110,10 @@ private:
     bgfx::ProgramHandle lineProgram_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_lightDir_  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_eyePos_    = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle u_lightIntensity_ = BGFX_INVALID_HANDLE;
     float lightDir_[4] = { 0.3f, 1.0f, 0.5f, 0.0f };
     float eyePos_[4]   = { 0.0f, 0.0f, 5.0f, 32.0f };
+    float lightIntensity_[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 
     std::vector<GpuMesh> meshes_;
     bool initialized_ = false;

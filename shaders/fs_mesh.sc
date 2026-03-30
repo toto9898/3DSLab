@@ -4,6 +4,7 @@ $input v_color0, v_normal, v_worldPos
 
 uniform vec4 u_lightDir;   // xyz = light direction (toward light), w unused
 uniform vec4 u_eyePos;     // xyz = camera position, w = specular power
+uniform vec4 u_lightIntensity; // x = global light intensity multiplier
 
 // Convert sRGB color to linear space (accurate piecewise sRGB curve)
 vec3 srgb_to_linear(vec3 c)
@@ -42,7 +43,7 @@ void main()
     float diff = max(dot(N, L), 0.0) * 1.0; // stronger diffuse
     float spec = pow(max(dot(N, H), 0.0), u_eyePos.w) * 1.0;
 
-    vec3 lit_linear = color * (ambient + diff) + spec * vec3(1.0, 1.0, 1.0);
+    vec3 lit_linear = (color * (ambient + diff) + spec * vec3(1.0, 1.0, 1.0)) * u_lightIntensity.x;
     lit_linear = max(lit_linear, vec3(0.0, 0.0, 0.0));
 
     // Convert back to sRGB for output

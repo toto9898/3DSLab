@@ -83,10 +83,12 @@ void Renderer::Shutdown() {
     if (bgfx::isValid(lineProgram_)) bgfx::destroy(lineProgram_);
     if (bgfx::isValid(u_lightDir_)) bgfx::destroy(u_lightDir_);
     if (bgfx::isValid(u_eyePos_)) bgfx::destroy(u_eyePos_);
+    if (bgfx::isValid(u_lightIntensity_)) bgfx::destroy(u_lightIntensity_);
     meshProgram_ = BGFX_INVALID_HANDLE;
     lineProgram_ = BGFX_INVALID_HANDLE;
     u_lightDir_  = BGFX_INVALID_HANDLE;
     u_eyePos_    = BGFX_INVALID_HANDLE;
+    u_lightIntensity_ = BGFX_INVALID_HANDLE;
 
     bgfx::shutdown();
     initialized_ = false;
@@ -112,6 +114,7 @@ bool Renderer::LoadShaders() {
     // Create uniforms for Phong shading
     u_lightDir_ = bgfx::createUniform("u_lightDir", bgfx::UniformType::Vec4);
     u_eyePos_   = bgfx::createUniform("u_eyePos",   bgfx::UniformType::Vec4);
+    u_lightIntensity_ = bgfx::createUniform("u_lightIntensity", bgfx::UniformType::Vec4);
 
     return true;
 }
@@ -236,6 +239,7 @@ void Renderer::DrawMesh(int meshId) {
     bgfx::setState(state);
     bgfx::setUniform(u_lightDir_, lightDir_);
     bgfx::setUniform(u_eyePos_, eyePos_);
+    bgfx::setUniform(u_lightIntensity_, lightIntensity_);
     bgfx::submit(kMainView, meshProgram_);
 }
 
@@ -277,9 +281,10 @@ void Renderer::SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix
     bgfx::setViewTransform(kMainView, view.data(), proj.data());
 }
 
-void Renderer::SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower) {
+void Renderer::SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower, float lightIntensity) {
     lightDir_[0] = lightDir.x(); lightDir_[1] = lightDir.y(); lightDir_[2] = lightDir.z(); lightDir_[3] = 0.0f;
     eyePos_[0] = eyePos.x(); eyePos_[1] = eyePos.y(); eyePos_[2] = eyePos.z(); eyePos_[3] = specularPower;
+    lightIntensity_[0] = lightIntensity; lightIntensity_[1] = 0.0f; lightIntensity_[2] = 0.0f; lightIntensity_[3] = 0.0f;
 }
 
 const GpuMesh* Renderer::GetMesh(int meshId) const {
