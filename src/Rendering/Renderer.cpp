@@ -262,7 +262,7 @@ void Renderer::DrawLines(const std::vector<PosColorVertex>& vertices) {
     bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z
                   | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_PT_LINES
                   | BGFX_STATE_LINEAA);
-    bgfx::submit(kMainView, meshProgram_);
+    bgfx::submit(kMainView, lineProgram_);
 }
 
 void Renderer::DestroyMesh(int meshId) {
