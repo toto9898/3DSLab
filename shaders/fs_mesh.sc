@@ -1,4 +1,4 @@
-$input v_color0, v_color1, v_normal, v_worldPos, v_specular
+$input v_color0, v_color1, v_normal, v_worldPos, v_specular, v_texcoord0
 
 #include <bgfx_shader.sh>
 
@@ -6,6 +6,8 @@ uniform vec4 u_lightDir;   // xyz = light direction (toward light), w unused
 uniform vec4 u_eyePos;     // xyz = camera position, w unused
 uniform vec4 u_lightIntensity; // x = global light intensity multiplier
 uniform vec4 u_doubleSided; // x = 1.0 -> enable two-sided normals
+uniform vec4 u_hasTexture;  // x = 1.0 -> mesh has a diffuse texture
+SAMPLER2D(s_texColor, 0);
 
 // Convert sRGB color to linear space (accurate piecewise sRGB curve)
 vec3 srgb_to_linear(vec3 c)
@@ -44,6 +46,15 @@ void main()
     // v_specular.rgb = specular color (linear), v_specular.a = shininess exponent
     vec3 diffuseColor = srgb_to_linear(v_color0.rgb);
     float alpha = v_color0.a;
+
+    // Apply diffuse texture if present (UV sentinel -1e6 means untextured face)
+    if (u_hasTexture.x > 0.5 && v_texcoord0.x > -1e5)
+    {
+        vec4 texColor = texture2D(s_texColor, v_texcoord0);
+        diffuseColor *= srgb_to_linear(texColor.rgb);
+        alpha *= texColor.a;
+    }
+
     vec3 ambientColor = srgb_to_linear(v_color1.rgb);
     float selfIllum = v_color1.a;
     vec3 specularColor = v_specular.rgb;

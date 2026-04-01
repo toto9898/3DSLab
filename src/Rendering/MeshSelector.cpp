@@ -145,7 +145,7 @@ void MeshSelector::SelectMesh(int meshId) {
 void MeshSelector::SelectMeshes(const std::vector<int>& meshIds, bool fireCallback) {
     // Reset all meshes first
     for (size_t i = 0; i < meshIds_.size(); ++i) {
-        if (renderer_) renderer_->SetMeshColor(meshIds_[i], originalColors_[i]);
+        renderer_->RestoreMesh(meshIds_[i]);
     }
     additionalSelectedIds_.clear();
 
@@ -173,6 +173,7 @@ void MeshSelector::HighlightSelected() {
 
     // Make all non-selected meshes semi-transparent with their original color
     for (size_t i = 0; i < meshIds_.size(); ++i) {
+        renderer_->RestoreMesh(meshIds_[i]);
         uint32_t color = originalColors_[i];
         // Set alpha to ~50% (replace high byte with 0x80)
         uint32_t halfAlpha = (color & 0x00FFFFFFu) | (0x80u << 24);
@@ -193,7 +194,7 @@ void MeshSelector::HighlightSelected() {
 void MeshSelector::ClearSelection() {
     if (renderer_) {
         for (size_t i = 0; i < meshIds_.size(); ++i) {
-            renderer_->SetMeshColor(meshIds_[i], originalColors_[i]);
+            renderer_->RestoreMesh(meshIds_[i]);
             renderer_->SetMeshTransparent(meshIds_[i], false);
         }
     }

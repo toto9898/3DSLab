@@ -79,6 +79,7 @@ void Renderer::Shutdown() {
     for (auto& mesh : meshes_) {
         if (bgfx::isValid(mesh.vbh)) bgfx::destroy(mesh.vbh);
         if (bgfx::isValid(mesh.ibh)) bgfx::destroy(mesh.ibh);
+        if (bgfx::isValid(mesh.tex)) bgfx::destroy(mesh.tex);
     }
     meshes_.clear();
 
@@ -88,12 +89,16 @@ void Renderer::Shutdown() {
     if (bgfx::isValid(u_eyePos_)) bgfx::destroy(u_eyePos_);
     if (bgfx::isValid(u_lightIntensity_)) bgfx::destroy(u_lightIntensity_);
     if (bgfx::isValid(u_doubleSided_)) bgfx::destroy(u_doubleSided_);
+    if (bgfx::isValid(s_texColor_)) bgfx::destroy(s_texColor_);
+    if (bgfx::isValid(u_hasTexture_)) bgfx::destroy(u_hasTexture_);
     meshProgram_ = BGFX_INVALID_HANDLE;
     lineProgram_ = BGFX_INVALID_HANDLE;
     u_lightDir_  = BGFX_INVALID_HANDLE;
     u_eyePos_    = BGFX_INVALID_HANDLE;
     u_lightIntensity_ = BGFX_INVALID_HANDLE;
     u_doubleSided_ = BGFX_INVALID_HANDLE;
+    s_texColor_ = BGFX_INVALID_HANDLE;
+    u_hasTexture_ = BGFX_INVALID_HANDLE;
 
     bgfx::shutdown();
     initialized_ = false;
@@ -121,6 +126,8 @@ bool Renderer::LoadShaders() {
     u_eyePos_   = bgfx::createUniform("u_eyePos",   bgfx::UniformType::Vec4);
     u_lightIntensity_ = bgfx::createUniform("u_lightIntensity", bgfx::UniformType::Vec4);
     u_doubleSided_ = bgfx::createUniform("u_doubleSided", bgfx::UniformType::Vec4);
+    s_texColor_ = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
+    u_hasTexture_ = bgfx::createUniform("u_hasTexture", bgfx::UniformType::Vec4);
 
     return true;
 }
@@ -160,6 +167,13 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
 
 int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
                           const std::vector<FaceMaterial>& faceMaterials) {
+    return UploadMesh(V, F, faceMaterials, {}, BGFX_INVALID_HANDLE);
+}
+
+int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                          const std::vector<FaceMaterial>& faceMaterials,
+                          const std::vector<Eigen::Vector2f>& texCoords,
+                          bgfx::TextureHandle tex) {
     int nVerts = static_cast<int>(V.rows());
     int nFaces = static_cast<int>(F.rows());
 
@@ -235,6 +249,13 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
         v.specG = vertMats[static_cast<size_t>(i)].specG;
         v.specB = vertMats[static_cast<size_t>(i)].specB;
         v.shininess = vertMats[static_cast<size_t>(i)].shininess;
+        if (i < static_cast<int>(texCoords.size())) {
+            v.u = texCoords[static_cast<size_t>(i)].x();
+            v.v = texCoords[static_cast<size_t>(i)].y();
+        } else {
+            v.u = -1e6f;
+            v.v = -1e6f;
+        }
     }
 
     GpuMesh mesh;
@@ -242,6 +263,7 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     mesh.numIndices  = static_cast<uint32_t>(nFaces * 3);
     mesh.V = V;
     mesh.F = F;
+    mesh.tex = tex;
     // Store normalized normals so SetMeshColor can reuse them directly
     mesh.N.resize(nVerts, 3);
     for (int i = 0; i < nVerts; ++i) {
@@ -266,6 +288,9 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
         mesh.bboxMax = bmax.cast<float>();
     }
 
+    // Store original vertex data for later restoration
+    mesh.originalVertices = vertices;
+
     const bgfx::Memory* vbMem = bgfx::copy(vertices.data(), static_cast<uint32_t>(nVerts * sizeof(PosNormalColorVertex)));
     mesh.vbh = bgfx::createVertexBuffer(vbMem, PosNormalColorVertex::layout);
 
@@ -275,6 +300,17 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     int id = static_cast<int>(meshes_.size());
     meshes_.push_back(std::move(mesh));
     return id;
+}
+
+void Renderer::RestoreMesh(int meshId) {
+    if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) return;
+    auto& mesh = meshes_[meshId];
+    if (mesh.originalVertices.empty()) return;
+
+    if (bgfx::isValid(mesh.vbh)) bgfx::destroy(mesh.vbh);
+    const bgfx::Memory* vbMem = bgfx::copy(mesh.originalVertices.data(),
+        static_cast<uint32_t>(mesh.originalVertices.size() * sizeof(PosNormalColorVertex)));
+    mesh.vbh = bgfx::createVertexBuffer(vbMem, PosNormalColorVertex::layout);
 }
 
 void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
@@ -304,6 +340,8 @@ void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
         v.specG = 0.0f;
         v.specB = 0.0f;
         v.shininess = 0.0f;
+        v.u = 0.0f;
+        v.v = 0.0f;
     }
 
     if (bgfx::isValid(mesh.vbh)) bgfx::destroy(mesh.vbh);
@@ -344,6 +382,15 @@ void Renderer::DrawMesh(int meshId) {
     bgfx::setUniform(u_eyePos_, eyePos_);
     bgfx::setUniform(u_lightIntensity_, lightIntensity_);
     bgfx::setUniform(u_doubleSided_, doubleSided_);
+
+    // Texture binding
+    float hasTexture[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if (bgfx::isValid(mesh.tex)) {
+        hasTexture[0] = 1.0f;
+        bgfx::setTexture(0, s_texColor_, mesh.tex);
+    }
+    bgfx::setUniform(u_hasTexture_, hasTexture);
+
     bgfx::submit(kMainView, meshProgram_);
 }
 

@@ -23,7 +23,7 @@ namespace Debugger3DS {
             if (!Read(u) || !Read(v)) {
                 return false;
             }
-            targetMesh_->texCoords.emplace_back(u, v);
+            targetMesh_->texCoords.emplace_back(u, 1.0f - v);
         }
         
         logging::log << "Texture Vertices: " << count << " texture coordinates" << std::endl;

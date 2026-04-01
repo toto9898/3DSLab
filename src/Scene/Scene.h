@@ -20,6 +20,7 @@ namespace Debugger3DS {
         uint32_t version = 0;
         uint32_t meshVersion = 0;
         float masterScale = 1.0f;
+        std::string basePath;  // directory containing the loaded .3ds file
         Eigen::Vector3f ambientLight = Eigen::Vector3f(0.1f, 0.1f, 0.1f);
         
         // Keyframe animation data

@@ -44,7 +44,8 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                                  const Scene& scene,
                                  MeshSelector& selector,
                                  std::unordered_map<uint16_t, int>& nodeToDataId,
-                                 std::function<void(const std::any&)> selectionCallback) {
+                                 std::function<void(const std::any&)> selectionCallback,
+                                 TextureLoader& textureLoader) {
     auto meshData = GetMeshesToRender(scene);
 
     selector.SetSelectionCallback(std::move(selectionCallback));
@@ -81,7 +82,51 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
         if (hasMaterialColors) {
             color = Renderer::PackColor(
                 faceMats[0].diffuse.x(), faceMats[0].diffuse.y(), faceMats[0].diffuse.z());
-            meshId = renderer.UploadMesh(entry.V, entry.F, faceMats);
+
+            // Find first material with a texture map
+            bgfx::TextureHandle texHandle = BGFX_INVALID_HANDLE;
+            if (entry.sourceMesh) {
+                for (const auto& face : entry.sourceMesh->faces) {
+                    if (face.material && !face.material->textureMap.empty()) {
+                        texHandle = textureLoader.LoadTexture(scene.basePath, face.material->textureMap);
+                        break;
+                    }
+                }
+            }
+
+            if (bgfx::isValid(texHandle) && !entry.sourceMesh->texCoords.empty()) {
+                // Build per-vertex UVs: use real UVs for faces whose material has a texture
+                // or no material at all (inherit mesh texture). Set sentinel (-1,-1) only for
+                // faces explicitly assigned to an untextured material.
+                std::vector<Eigen::Vector2f> maskedUVs = entry.sourceMesh->texCoords;
+                std::vector<bool> vertexUntextured(maskedUVs.size(), false);
+                for (int f = 0; f < nFaces; ++f) {
+                    const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                    bool faceIsUntextured = (mat && mat->textureMap.empty());
+                    if (faceIsUntextured) {
+                        for (int c = 0; c < 3; ++c) {
+                            int vi = entry.F(f, c);
+                            vertexUntextured[static_cast<size_t>(vi)] = true;
+                        }
+                    }
+                }
+                // A vertex shared between textured and untextured faces keeps its UV
+                for (int f = 0; f < nFaces; ++f) {
+                    const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                    bool faceIsTextured = (!mat || !mat->textureMap.empty());
+                    if (faceIsTextured) {
+                        for (int c = 0; c < 3; ++c)
+                            vertexUntextured[static_cast<size_t>(entry.F(f, c))] = false;
+                    }
+                }
+                for (size_t i = 0; i < maskedUVs.size(); ++i) {
+                    if (vertexUntextured[i])
+                        maskedUVs[i] = Eigen::Vector2f(-1e6f, -1e6f);
+                }
+                meshId = renderer.UploadMesh(entry.V, entry.F, faceMats, maskedUVs, texHandle);
+            } else {
+                meshId = renderer.UploadMesh(entry.V, entry.F, faceMats);
+            }
         } else {
             // Fallback: generate a distinct color per mesh
             float r, g, b;

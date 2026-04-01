@@ -33,6 +33,11 @@ bool Application::LoadScene(const std::string& filepath) {
         return false;
     }
     scene_ = importer_.GetScene();
+    // Extract directory from filepath for texture loading
+    {
+        auto pos = filepath.find_last_of("/\\");
+        scene_.basePath = (pos != std::string::npos) ? filepath.substr(0, pos) : ".";
+    }
     logging::Logger::enabled = true;
     return true;
 }
@@ -103,7 +108,8 @@ void Application::SetupViewer() {
                     std::cout << objectNode->associatedMesh->meshMatrix << std::endl;
                 }
             }
-        });
+        },
+        textureLoader_);
 
     axisLines_ = MeshUploader::MakeCoordinateAxes(10.0);
 
@@ -144,9 +150,14 @@ void Application::Run() {
 
         renderer_.BeginFrame(w, h);
 
-        // Set light direction (from upper-right-front) and eye position for Phong shading
-        Eigen::Vector3f lightDir = Eigen::Vector3f(0.3f, 1.0f, 0.5f).normalized();
-        renderer_.SetLightUniforms(lightDir, camera_.GetEyePosition());
+        // Headlight: light comes from the camera direction (slightly above for depth cues)
+        Eigen::Vector3f eyePos = camera_.GetEyePosition();
+        Eigen::Matrix4f view = camera_.GetViewMatrix();
+        // Extract camera forward from view matrix row 2 (negated because view z is -forward)
+        Eigen::Vector3f camForward(-view(2, 0), -view(2, 1), -view(2, 2));
+        Eigen::Vector3f camUp(view(1, 0), view(1, 1), view(1, 2));
+        Eigen::Vector3f lightDir = (-camForward + camUp * 0.3f).normalized();
+        renderer_.SetLightUniforms(lightDir, eyePos);
 
         // Draw all meshes (opaque first, then transparent sorted back-to-front)
         renderer_.DrawAllMeshes(camera_.GetEyePosition());
@@ -171,6 +182,7 @@ void Application::Run() {
     ImGui_ImplBgfx_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+    textureLoader_.Shutdown();
     renderer_.Shutdown();
     window_.Shutdown();
 }

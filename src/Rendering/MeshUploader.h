@@ -5,6 +5,7 @@
 #include "Mesh.h"
 #include "MeshSelector.h"
 #include "ObjectNode.h"
+#include "TextureLoader.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -31,7 +32,8 @@ public:
                              const Scene& scene,
                              MeshSelector& selector,
                              std::unordered_map<uint16_t, int>& nodeToDataId,
-                             std::function<void(const std::any&)> selectionCallback);
+                             std::function<void(const std::any&)> selectionCallback,
+                             TextureLoader& textureLoader);
 
     // Create line vertices for coordinate axes
     static std::vector<PosColorVertex> MakeCoordinateAxes(double axisLength = 10.0);

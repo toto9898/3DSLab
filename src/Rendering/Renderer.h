@@ -28,6 +28,7 @@ struct PosNormalColorVertex {
     uint32_t abgr;      // diffuse color (RGB) + transparency (A) in Color0
     uint32_t abgr1;     // ambient color (RGB) + self-illumination (A) in Color1
     float specR, specG, specB, shininess; // specular color + exponent in TexCoord1
+    float u, v;         // texture UV coordinates in TexCoord0
 
     static void Init() {
         layout.begin()
@@ -36,6 +37,7 @@ struct PosNormalColorVertex {
             .add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
             .add(bgfx::Attrib::Color1,    4, bgfx::AttribType::Uint8, true)
             .add(bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
             .end();
     }
     static bgfx::VertexLayout layout;
@@ -56,6 +58,7 @@ struct FaceMaterial {
 struct GpuMesh {
     bgfx::VertexBufferHandle vbh = BGFX_INVALID_HANDLE;
     bgfx::IndexBufferHandle  ibh = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle      tex = BGFX_INVALID_HANDLE;
     uint32_t numVertices = 0;
     uint32_t numIndices  = 0;
     bool transparent = false;
@@ -64,6 +67,8 @@ struct GpuMesh {
     Eigen::MatrixXi F;
     // Per-vertex smooth normals (rows == V.rows(), 3 cols)
     Eigen::MatrixXf N;
+    // Original vertex data for restoring after selection highlight
+    std::vector<PosNormalColorVertex> originalVertices;
     // Cached centroid and bbox (computed at upload time to avoid per-frame work)
     Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
     Eigen::Vector3f bboxMin  = Eigen::Vector3f::Zero();
@@ -96,8 +101,17 @@ public:
     int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
                    const std::vector<FaceMaterial>& faceMaterials);
 
+    // Upload a mesh with full per-face material properties, UV coordinates, and a texture.
+    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                   const std::vector<FaceMaterial>& faceMaterials,
+                   const std::vector<Eigen::Vector2f>& texCoords,
+                   bgfx::TextureHandle tex);
+
     // Change face color for an already-uploaded mesh (re-uploads vertex buffer)
     void SetMeshColor(int meshId, uint32_t abgr);
+
+    // Restore mesh to its original vertex data (after selection highlight)
+    void RestoreMesh(int meshId);
 
     // Set whether a mesh should be drawn with alpha blending
     void SetMeshTransparent(int meshId, bool transparent);
@@ -151,6 +165,8 @@ private:
     bgfx::UniformHandle u_eyePos_    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_lightIntensity_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_doubleSided_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle s_texColor_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle u_hasTexture_ = BGFX_INVALID_HANDLE;
     float lightDir_[4] = { 0.3f, 1.0f, 0.5f, 0.0f };
     float eyePos_[4]   = { 0.0f, 0.0f, 5.0f, 32.0f };
     float lightIntensity_[4] = { 1.0f, 0.0f, 0.0f, 0.0f };

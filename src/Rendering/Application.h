@@ -7,6 +7,7 @@
 #include "CameraController.h"
 #include "MeshSelector.h"
 #include "MeshUploader.h"
+#include "TextureLoader.h"
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -36,6 +37,7 @@ private:
     Renderer renderer_;
     CameraController camera_;
     MeshSelector selector_;
+    TextureLoader textureLoader_;
 
     std::unique_ptr<UI::SceneTreePanel> scenePanel_;
     std::unordered_map<uint16_t, int> nodeToDataId_;

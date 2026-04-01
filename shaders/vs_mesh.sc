@@ -1,5 +1,5 @@
-$input a_position, a_normal, a_color0, a_color1, a_texcoord1
-$output v_color0, v_color1, v_normal, v_worldPos, v_specular
+$input a_position, a_normal, a_color0, a_color1, a_texcoord1, a_texcoord0
+$output v_color0, v_color1, v_normal, v_worldPos, v_specular, v_texcoord0
 
 #include <bgfx_shader.sh>
 
@@ -12,4 +12,5 @@ void main()
     v_color0 = a_color0;
     v_color1 = a_color1;
     v_specular = a_texcoord1;
+    v_texcoord0 = a_texcoord0;
 }

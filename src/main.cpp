@@ -1,7 +1,7 @@
 #include "Application.h"
 #include <iostream>
 
-constexpr auto kMeshFilePath = R"(data\sample_model.3ds)";
+constexpr auto kMeshFilePath = R"(data\Chair\sample_model.3ds)";
 
 int main(int argc, char *argv[])
 {

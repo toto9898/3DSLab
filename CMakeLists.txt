@@ -164,6 +164,7 @@ set(SRC_FILES
     src/Rendering/MeshSelector.cpp
     src/Rendering/CameraController.cpp
     src/Rendering/MeshUploader.cpp
+    src/Rendering/TextureLoader.cpp
     src/Parser/Importer.cpp
     src/Scene/Scene.cpp
     src/Scene/Mesh.cpp
@@ -205,6 +206,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Rendering
     ${CMAKE_CURRENT_SOURCE_DIR}/src/UI
     ${SHADER_OUTPUT_DIR}
+    ${bgfx_cmake_SOURCE_DIR}/bimg/3rdparty
 )
 
 # Prevent Windows.h from defining min/max macros; disable WGSL shader embedding
