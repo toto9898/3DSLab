@@ -210,6 +210,10 @@ Eigen::Matrix4f CameraController::GetProjectionMatrix(float aspectRatio, bool ho
     float fovRad = fovDeg_ * static_cast<float>(M_PI) / 180.0f;
     float tanHalf = std::tan(fovRad * 0.5f);
 
+    // Adapt near/far planes to current camera distance so geometry is never clipped
+    float near = std::max(distance_ * 0.001f, 0.01f);
+    float far  = std::max(distance_ * 100.0f, farPlane_);
+
     Eigen::Matrix4f proj = Eigen::Matrix4f::Zero();
     proj(0, 0) = 1.0f / (aspectRatio * tanHalf);
     proj(1, 1) = 1.0f / tanHalf;
@@ -217,12 +221,12 @@ Eigen::Matrix4f CameraController::GetProjectionMatrix(float aspectRatio, bool ho
 
     if (homogeneousDepth) {
         // OpenGL / Vulkan: NDC z in [-1, 1]
-        proj(2, 2) = -(farPlane_ + nearPlane_) / (farPlane_ - nearPlane_);
-        proj(2, 3) = -(2.0f * farPlane_ * nearPlane_) / (farPlane_ - nearPlane_);
+        proj(2, 2) = -(far + near) / (far - near);
+        proj(2, 3) = -(2.0f * far * near) / (far - near);
     } else {
         // Direct3D: NDC z in [0, 1]
-        proj(2, 2) = -farPlane_ / (farPlane_ - nearPlane_);
-        proj(2, 3) = -(farPlane_ * nearPlane_) / (farPlane_ - nearPlane_);
+        proj(2, 2) = -far / (far - near);
+        proj(2, 3) = -(far * near) / (far - near);
     }
 
     return proj;
