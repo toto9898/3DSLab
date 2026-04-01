@@ -53,11 +53,6 @@ private:
     // Debug: show pivot marker in the scene
     bool showPivotMarker_ = false;
 
-    // Track last pivot so we only change the camera target when the selection/pivot actually changes.
-    Eigen::Vector3f lastPivotWorld_ = Eigen::Vector3f::Zero();
-    bool prevHasSelection_ = false;
-    bool pivotInitialized_ = false;
-
     void ProcessInput();
     void DrawImGui();
 };

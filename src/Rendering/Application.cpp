@@ -129,26 +129,13 @@ void Application::Run() {
         bool hasSelection = selector_.HasSelection();
         Eigen::Vector3f pivotWorld = hasSelection ? selector_.GetSelectionCenter() : Eigen::Vector3f::Zero();
 
-        // If the selection/pivot changed and there is a selection, update the camera target
-        // but preserve the eye position so the camera does not move suddenly.
-        if (hasSelection) {
-            if (!pivotInitialized_ || !prevHasSelection_ || (pivotWorld - lastPivotWorld_).norm() > 1e-6f) {
-                camera_.SetTargetKeepEye(pivotWorld);
-            }
-        } else {
-            // No selection: return pivot to origin, preserving eye position
-            if (!pivotInitialized_ || prevHasSelection_) {
-                camera_.SetTargetKeepEye(pivotWorld);
-            }
-        }
+        // Set the orbit pivot so rotations orbit around the selected object (or origin).
+        // This does NOT move the camera — it only affects future rotations.
+        camera_.SetOrbitPivot(pivotWorld);
 
         // Inform renderer about pivot for optional debug marker
         renderer_.SetPivotPoint(pivotWorld);
         renderer_.SetShowPivotMarker(showPivotMarker_);
-
-        lastPivotWorld_ = pivotWorld;
-        prevHasSelection_ = hasSelection;
-        pivotInitialized_ = true;
 
         // Set view/projection
         float aspect = static_cast<float>(w) / static_cast<float>(h);

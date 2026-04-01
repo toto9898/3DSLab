@@ -23,6 +23,9 @@ void CameraController::OnMouseDrag(float prevX, float prevY, float currX, float 
         // orientation sign controls horizontal direction: default flipped so left/right match user
         float orientationSign = invertRotation_ ? 1.0f : -1.0f;
 
+        // Incremental world-space rotation (computed below)
+        Eigen::Quaternionf deltaQ = Eigen::Quaternionf::Identity();
+
         if (rotationMode_ == RotationMode::Arcball) {
             // Arcball rotation: map previous and current mouse positions to the unit sphere
             Eigen::Vector3f v0 = ArcballVector(prevX, prevY, viewportW, viewportH, centerX, centerY);
@@ -35,8 +38,8 @@ void CameraController::OnMouseDrag(float prevX, float prevY, float currX, float 
                 float dot = std::clamp(v0.dot(v1), -1.0f, 1.0f);
                 // Direction controlled by invertRotation_; angle scaled by rotateSpeed_
                 float angle = orientationSign * std::acos(dot) * rotateSpeed_;
-                Eigen::Quaternionf rot(Eigen::AngleAxisf(angle, axis));
-                rotation_ = rot * rotation_;
+                deltaQ = Eigen::Quaternionf(Eigen::AngleAxisf(angle, axis));
+                rotation_ = deltaQ * rotation_;
                 rotation_.normalize();
             }
         } else {
@@ -62,8 +65,18 @@ void CameraController::OnMouseDrag(float prevX, float prevY, float currX, float 
             Eigen::Vector3f rightAfterYaw = rotYawed * Eigen::Vector3f::UnitX();
             Eigen::Quaternionf qPitch(Eigen::AngleAxisf(anglePitch, rightAfterYaw));
 
-            rotation_ = qPitch * rotYawed;
+            deltaQ = qPitch * qYaw;
+            rotation_ = deltaQ * rotation_;
             rotation_.normalize();
+        }
+
+        // When orbiting around a custom pivot (e.g. selected object center),
+        // also rotate target_ around that pivot so the camera orbits it.
+        if (hasCustomPivot_) {
+            target_ = orbitPivot_ + deltaQ * (target_ - orbitPivot_);
+            // Update distance since target moved
+            Eigen::Vector3f eye = target_ + rotation_ * Eigen::Vector3f(0, 0, distance_);
+            distance_ = (eye - target_).norm();
         }
     }
     if (rightDrag) {
@@ -289,6 +302,12 @@ void CameraController::SetTargetKeepEye(const Eigen::Vector3f& target)
     Eigen::Vector3f rightAxis = qYaw * Eigen::Vector3f::UnitX();
     Eigen::Quaternionf qPitch(Eigen::AngleAxisf(pitch, rightAxis));
     rotation_ = (qPitch * qYaw).normalized();
+}
+
+void CameraController::SetOrbitPivot(const Eigen::Vector3f& pivot)
+{
+    orbitPivot_ = pivot;
+    hasCustomPivot_ = true;
 }
 
 } // namespace Debugger3DS

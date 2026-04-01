@@ -63,10 +63,16 @@ public:
     // Useful when changing the rotation/pivot center without translating the view.
     void SetTargetKeepEye(const Eigen::Vector3f& target);
 
+    // Set the orbit pivot point. Rotations will orbit the camera around this point
+    // without moving the camera immediately. Defaults to target_.
+    void SetOrbitPivot(const Eigen::Vector3f& pivot);
+
 private:
     // Trackball: rotation is stored as a quaternion
     Eigen::Quaternionf rotation_ = Eigen::Quaternionf::Identity();
     Eigen::Vector3f target_ = Eigen::Vector3f::Zero();       // look-at target
+    Eigen::Vector3f orbitPivot_ = Eigen::Vector3f::Zero();    // rotation orbit center
+    bool hasCustomPivot_ = false;                              // true when orbitPivot_ != target_
     float distance_ = 5.0f;                                    // distance from target
     float fovDeg_ = 45.0f;
     float nearPlane_ = 0.1f;
