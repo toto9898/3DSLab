@@ -27,6 +27,7 @@ public:
 
     bool Init(int width, int height, const std::string& title);
     void Shutdown();
+    void SetTitle(const std::string& title);
 
     bool ShouldClose() const;
     void PollEvents();
@@ -52,12 +53,16 @@ public:
     // Callback for resize events
     std::function<void(int, int)> onResize;
 
+    // Callback for file drop events
+    std::function<void(const std::string&)> onDrop;
+
 private:
     static void KeyCallback(GLFWwindow* w, int key, int scancode, int action, int mods);
     static void MouseButtonCallback(GLFWwindow* w, int button, int action, int mods);
     static void CursorPosCallback(GLFWwindow* w, double x, double y);
     static void ScrollCallback(GLFWwindow* w, double xoff, double yoff);
     static void FramebufferResizeCallback(GLFWwindow* w, int width, int height);
+    static void DropCallback(GLFWwindow* w, int count, const char** paths);
 
     GLFWwindow* window_ = nullptr;
     uint16_t width_ = 0, height_ = 0;

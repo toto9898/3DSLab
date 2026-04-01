@@ -467,6 +467,15 @@ void Renderer::DestroyMesh(int meshId) {
     if (bgfx::isValid(mesh.ibh)) { bgfx::destroy(mesh.ibh); mesh.ibh = BGFX_INVALID_HANDLE; }
 }
 
+void Renderer::ClearAllMeshes() {
+    for (auto& mesh : meshes_) {
+        if (bgfx::isValid(mesh.vbh)) bgfx::destroy(mesh.vbh);
+        if (bgfx::isValid(mesh.ibh)) bgfx::destroy(mesh.ibh);
+        if (bgfx::isValid(mesh.tex)) bgfx::destroy(mesh.tex);
+    }
+    meshes_.clear();
+}
+
 void Renderer::SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj) {
     // bgfx expects column-major (which Eigen stores natively)
     bgfx::setViewTransform(kMainView, view.data(), proj.data());

@@ -1,17 +1,13 @@
 #include "Application.h"
-#include <iostream>
-
-constexpr auto kMeshFilePath = R"(data\Chair\sample_model.3ds)";
 
 int main(int argc, char *argv[])
 {
     Debugger3DS::Application app;
-    
-    if (!app.LoadScene(kMeshFilePath)) {
-        std::cerr << "Failed to load 3DS file" << std::endl;
-        return -1;
-    }
-    
     app.SetupViewer();
+
+    // If a file was passed on the command line, open it
+    if (argc > 1)
+        app.OpenScene(argv[1]);
+
     app.Run();
 }

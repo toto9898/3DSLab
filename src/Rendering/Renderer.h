@@ -125,6 +125,9 @@ public:
     // Destroy a specific mesh
     void DestroyMesh(int meshId);
 
+    // Destroy all meshes (GPU resources only, keeps renderer alive)
+    void ClearAllMeshes();
+
     // Set the view and projection matrices for the current frame
     void SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj);
 

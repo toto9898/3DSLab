@@ -33,6 +33,7 @@ bool Window::Init(int width, int height, const std::string& title) {
     glfwSetCursorPosCallback(window_, CursorPosCallback);
     glfwSetScrollCallback(window_, ScrollCallback);
     glfwSetFramebufferSizeCallback(window_, FramebufferResizeCallback);
+    glfwSetDropCallback(window_, DropCallback);
 
     return true;
 }
@@ -43,6 +44,11 @@ void Window::Shutdown() {
         window_ = nullptr;
     }
     glfwTerminate();
+}
+
+void Window::SetTitle(const std::string& title) {
+    if (window_)
+        glfwSetWindowTitle(window_, title.c_str());
 }
 
 bool Window::ShouldClose() const {
@@ -124,6 +130,13 @@ void Window::FramebufferResizeCallback(GLFWwindow* w, int width, int height) {
     self->height_ = static_cast<uint16_t>(height);
     if (self->onResize)
         self->onResize(width, height);
+}
+
+void Window::DropCallback(GLFWwindow* w, int count, const char** paths) {
+    auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
+    if (!self || count < 1) return;
+    if (self->onDrop)
+        self->onDrop(std::string(paths[0]));
 }
 
 } // namespace Debugger3DS

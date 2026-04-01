@@ -191,6 +191,15 @@ void MeshSelector::HighlightSelected() {
     }
 }
 
+void MeshSelector::Reset() {
+    ClearSelection();
+    meshIds_.clear();
+    userData_.clear();
+    meshNames_.clear();
+    meshBBoxes_.clear();
+    originalColors_.clear();
+}
+
 void MeshSelector::ClearSelection() {
     if (renderer_) {
         for (size_t i = 0; i < meshIds_.size(); ++i) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Importer.h"
 #include "SceneTreePanel.h"
 #include "Window.h"
 #include "Renderer.h"
@@ -20,17 +19,16 @@ class Application {
 public:
     Application() = default;
 
-    // Load a 3DS scene from file
-    bool LoadScene(const std::string& filepath);
-
-    // Initialize window, renderer, UI, and mesh rendering
+    // Initialize window, renderer, UI (starts with empty scene)
     void SetupViewer();
 
     // Run the main loop (blocking)
     void Run();
 
+    // Open a 3DS file: clears previous scene and loads the new one
+    void OpenScene(const std::string& filepath);
+
 private:
-    Importer importer_;
     Scene scene_;
 
     Window window_;
@@ -55,8 +53,11 @@ private:
     // Debug: show pivot marker in the scene
     bool showPivotMarker_ = false;
 
+    bool LoadScene(const std::string& filepath);
+    void UploadScene();
     void ProcessInput();
     void DrawImGui();
+    bool sceneLoaded_ = false;
 };
 
 } // namespace Debugger3DS

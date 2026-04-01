@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "Importer.h"
 #include "ObjectNode.h"
 #include "Logger.h"
 #include <imgui.h>
@@ -27,12 +28,14 @@ void SnapWindowToEdges(float snapDist = 20.0f) {
 namespace Debugger3DS {
 
 bool Application::LoadScene(const std::string& filepath) {
+    Importer importer;
     logging::Logger::enabled = false;
-    if (!importer_.Import3DS(filepath)) {
+    if (!importer.Import3DS(filepath)) {
         logging::log << "Failed to load 3DS file" << std::endl;
+        logging::Logger::enabled = true;
         return false;
     }
-    scene_ = importer_.GetScene();
+    scene_ = importer.GetScene();
     // Extract directory from filepath for texture loading
     {
         auto pos = filepath.find_last_of("/\\");
@@ -42,35 +45,27 @@ bool Application::LoadScene(const std::string& filepath) {
     return true;
 }
 
-void Application::SetupViewer() {
-    // Initialize window
-    window_.Init(1280, 720, "3DSLab");
+void Application::OpenScene(const std::string& filepath) {
+    if (!LoadScene(filepath))
+        return;
 
-    // Initialize bgfx renderer
-    renderer_.Init(window_.GetNativeHandle(), window_.GetWidth(), window_.GetHeight());
+    // Clear previous GPU state
+    renderer_.ClearAllMeshes();
+    textureLoader_.Shutdown();
+    selector_.Reset();
+    nodeToDataId_.clear();
 
-    // Initialize camera
-    camera_.Init(45.0f, 0.1f, 10000.0f);
-    // Use fixed viewer defaults: turntable mode, default rotate speed
-    camera_.SetRotateSpeed(1.0f);
-    camera_.SetRotationMode(CameraController::RotationMode::Turntable);
-    camera_.SetInvertRotation(false);
+    // Upload new scene
+    UploadScene();
+    sceneLoaded_ = true;
 
-    // Initialize ImGui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-    ImGui_ImplGlfw_InitForOther(window_.GetGLFWWindow(), true);
-    ImGui_ImplBgfx_Init(255);
+    // Update window title
+    auto lastSlash = filepath.find_last_of("/\\");
+    std::string filename = (lastSlash != std::string::npos) ? filepath.substr(lastSlash + 1) : filepath;
+    window_.SetTitle("3DSLab - " + filename);
+}
 
-    // Handle window resize
-    window_.onResize = [this](int w, int h) {
-        renderer_.HandleResize(static_cast<uint16_t>(w), static_cast<uint16_t>(h));
-    };
-
-    // Initialize selector
-    selector_.Init(renderer_, camera_);
-
+void Application::UploadScene() {
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
 
     // Sync ImGui tree → 3D selection
@@ -110,13 +105,52 @@ void Application::SetupViewer() {
             }
         },
         textureLoader_);
+}
+
+void Application::SetupViewer() {
+    // Initialize window
+    window_.Init(1280, 720, "3DSLab");
+
+    // Initialize bgfx renderer
+    renderer_.Init(window_.GetNativeHandle(), window_.GetWidth(), window_.GetHeight());
+
+    // Initialize camera
+    camera_.Init(45.0f, 0.1f, 10000.0f);
+    // Use fixed viewer defaults: turntable mode, default rotate speed
+    camera_.SetRotateSpeed(1.0f);
+    camera_.SetRotationMode(CameraController::RotationMode::Turntable);
+    camera_.SetInvertRotation(false);
+
+    // Initialize ImGui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOther(window_.GetGLFWWindow(), true);
+    ImGui_ImplBgfx_Init(255);
+
+    // Handle window resize
+    window_.onResize = [this](int w, int h) {
+        renderer_.HandleResize(static_cast<uint16_t>(w), static_cast<uint16_t>(h));
+    };
+
+    // Handle file drop
+    window_.onDrop = [this](const std::string& path) {
+        // Accept only .3ds files (case-insensitive check)
+        if (path.size() >= 4) {
+            std::string ext = path.substr(path.size() - 4);
+            for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if (ext == ".3ds")
+                OpenScene(path);
+        }
+    };
+
+    // Initialize selector
+    selector_.Init(renderer_, camera_);
+
+    // Create empty scene panel
+    scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
 
     axisLines_ = MeshUploader::MakeCoordinateAxes(10.0);
-
-    std::cout << "\nControls:\n";
-    std::cout << "  N - Next mesh\n";
-    std::cout << "  P - Previous mesh\n";
-    std::cout << "  C - Clear selection\n";
 }
 
 void Application::Run() {
@@ -254,7 +288,10 @@ void Application::DrawImGui() {
 
     if (ImGui::BeginTabBar("InspectorTabs")) {
         if (ImGui::BeginTabItem("Scene")) {
-            scenePanel_->DrawContent();
+            if (sceneLoaded_)
+                scenePanel_->DrawContent();
+            else
+                ImGui::TextWrapped("Drop a .3ds file here to open it.");
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();

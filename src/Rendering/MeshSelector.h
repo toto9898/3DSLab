@@ -54,6 +54,9 @@ public:
     // Clear selection
     void ClearSelection();
 
+    // Reset all state (meshes, selection, etc.)
+    void Reset();
+
     // Select mesh by renderer id (toggles if already selected)
     void SelectMesh(int meshId);
 
