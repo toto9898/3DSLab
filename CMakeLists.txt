@@ -221,3 +221,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     imgui_lib
     Eigen3::Eigen
 )
+
+if(WIN32)
+    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_link_options(${PROJECT_NAME} PRIVATE "/ENTRY:mainCRTStartup")
+endif()
