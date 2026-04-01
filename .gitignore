@@ -46,3 +46,10 @@ temp/*
 
 # 3DS files
 *.3ds
+
+# Image files
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
