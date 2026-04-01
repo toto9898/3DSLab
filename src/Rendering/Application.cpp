@@ -46,6 +46,10 @@ void Application::SetupViewer() {
 
     // Initialize camera
     camera_.Init(45.0f, 0.1f, 10000.0f);
+    // Use fixed viewer defaults: turntable mode, default rotate speed
+    camera_.SetRotateSpeed(1.0f);
+    camera_.SetRotationMode(CameraController::RotationMode::Turntable);
+    camera_.SetInvertRotation(false);
 
     // Initialize ImGui
     IMGUI_CHECKVERSION();
@@ -121,6 +125,31 @@ void Application::Run() {
         ProcessInput();
         camera_.Update();
 
+        // Determine pivot target: use selection center when available, otherwise origin
+        bool hasSelection = selector_.HasSelection();
+        Eigen::Vector3f pivotWorld = hasSelection ? selector_.GetSelectionCenter() : Eigen::Vector3f::Zero();
+
+        // If the selection/pivot changed and there is a selection, update the camera target
+        // but preserve the eye position so the camera does not move suddenly.
+        if (hasSelection) {
+            if (!pivotInitialized_ || !prevHasSelection_ || (pivotWorld - lastPivotWorld_).norm() > 1e-6f) {
+                camera_.SetTargetKeepEye(pivotWorld);
+            }
+        } else {
+            // No selection: return pivot to origin, preserving eye position
+            if (!pivotInitialized_ || prevHasSelection_) {
+                camera_.SetTargetKeepEye(pivotWorld);
+            }
+        }
+
+        // Inform renderer about pivot for optional debug marker
+        renderer_.SetPivotPoint(pivotWorld);
+        renderer_.SetShowPivotMarker(showPivotMarker_);
+
+        lastPivotWorld_ = pivotWorld;
+        prevHasSelection_ = hasSelection;
+        pivotInitialized_ = true;
+
         // Set view/projection
         float aspect = static_cast<float>(w) / static_cast<float>(h);
         bool hmgDepth = renderer_.IsHomogeneousDepth();
@@ -162,26 +191,51 @@ void Application::Run() {
 void Application::ProcessInput() {
     const auto& input = window_.GetInput();
 
-    // Compute mouse delta
-    float deltaX = 0, deltaY = 0;
-    if (!firstMouse_) {
-        deltaX = static_cast<float>(input.mouseX - prevMouseX_);
-        deltaY = static_cast<float>(input.mouseY - prevMouseY_);
-    }
-    firstMouse_ = false;
-    prevMouseX_ = input.mouseX;
-    prevMouseY_ = input.mouseY;
+    // Current mouse
+    double curMouseX = input.mouseX;
+    double curMouseY = input.mouseY;
+    bool hadPrev = !firstMouse_;
 
     // Camera controls (only when ImGui doesn't want input)
     if (!ImGui::GetIO().WantCaptureMouse) {
         bool leftDrag  = input.mouseButtons[0];
         bool rightDrag = input.mouseButtons[1];
-        camera_.OnMouseDrag(deltaX, deltaY, leftDrag, rightDrag,
-                            static_cast<float>(window_.GetWidth()),
-                            static_cast<float>(window_.GetHeight()));
+        if (hadPrev) {
+            // Compute pivot screen coords (in pixels) for rotation center
+            float pivotScreenX = static_cast<float>(window_.GetWidth()) * 0.5f;
+            float pivotScreenY = static_cast<float>(window_.GetHeight()) * 0.5f;
+            if (selector_.HasSelection()) {
+                Eigen::Vector3f selCenter = selector_.GetSelectionCenter();
+                // Project selCenter to screen using current camera view/proj
+                float aspect = static_cast<float>(window_.GetWidth()) / static_cast<float>(window_.GetHeight());
+                bool hmgDepth = renderer_.IsHomogeneousDepth();
+                Eigen::Matrix4f view = camera_.GetViewMatrix();
+                Eigen::Matrix4f proj = camera_.GetProjectionMatrix(aspect, hmgDepth);
+                Eigen::Vector4f clip = proj * view * Eigen::Vector4f(selCenter.x(), selCenter.y(), selCenter.z(), 1.0f);
+                if (std::abs(clip.w()) > 1e-6f) {
+                    float ndcX = clip.x() / clip.w();
+                    float ndcY = clip.y() / clip.w();
+                    pivotScreenX = (ndcX * 0.5f + 0.5f) * static_cast<float>(window_.GetWidth());
+                    pivotScreenY = (1.0f - (ndcY * 0.5f + 0.5f)) * static_cast<float>(window_.GetHeight());
+                }
+            }
+
+            camera_.OnMouseDrag(static_cast<float>(prevMouseX_), static_cast<float>(prevMouseY_),
+                                static_cast<float>(curMouseX), static_cast<float>(curMouseY),
+                                leftDrag, rightDrag,
+                                static_cast<float>(window_.GetWidth()),
+                                static_cast<float>(window_.GetHeight()),
+                                pivotScreenX, pivotScreenY);
+        } else {
+        }
+
         if (input.scrollDeltaY != 0)
             camera_.OnScroll(static_cast<float>(input.scrollDeltaY));
     }
+
+    firstMouse_ = false;
+    prevMouseX_ = curMouseX;
+    prevMouseY_ = curMouseY;
 
     // Mesh selection
     selector_.ProcessInput(input, window_.GetWidth(), window_.GetHeight());
@@ -205,6 +259,13 @@ void Application::DrawImGui() {
             ImGui::EndTabItem();
         }
         ImGui::EndTabBar();
+    }
+
+    // Interaction settings (simplified): suspend transparency and optional pivot marker
+    if (ImGui::CollapsingHeader("Interaction", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Checkbox("Show pivot marker", &showPivotMarker_)) {
+            // toggle handled via renderer each frame
+        }
     }
 
     ImGui::End();

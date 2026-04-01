@@ -11,6 +11,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <Eigen/Dense>
 
 namespace Debugger3DS {
 
@@ -45,6 +46,17 @@ private:
     double prevMouseX_ = 0;
     double prevMouseY_ = 0;
     bool firstMouse_ = true;
+
+    // Interaction settings
+    float arcballRotateSpeed_ = 1.0f; // kept for compatibility but not exposed in UI
+    // Pivot behavior: by default use selection center when available
+    // Debug: show pivot marker in the scene
+    bool showPivotMarker_ = false;
+
+    // Track last pivot so we only change the camera target when the selection/pivot actually changes.
+    Eigen::Vector3f lastPivotWorld_ = Eigen::Vector3f::Zero();
+    bool prevHasSelection_ = false;
+    bool pivotInitialized_ = false;
 
     void ProcessInput();
     void DrawImGui();

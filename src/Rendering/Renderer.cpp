@@ -182,7 +182,29 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
     mesh.numIndices  = static_cast<uint32_t>(nFaces * 3);
     mesh.V = V;
     mesh.F = F;
-    mesh.N = accum;
+    // Store normalized normals so SetMeshColor can reuse them directly
+    mesh.N.resize(nVerts, 3);
+    for (int i = 0; i < nVerts; ++i) {
+        Eigen::Vector3f n(accum(i, 0), accum(i, 1), accum(i, 2));
+        float len = n.norm();
+        if (len > 1e-8f) n /= len;
+        else n = Eigen::Vector3f(0, 1, 0);
+        mesh.N.row(i) = n.transpose();
+    }
+
+    // Compute centroid and bbox once and store as floats for fast sorting
+    if (nVerts > 0) {
+        Eigen::Vector3d c = V.colwise().mean();
+        mesh.centroid = c.cast<float>();
+        Eigen::Vector3d bmin = Eigen::Vector3d::Constant(std::numeric_limits<double>::infinity());
+        Eigen::Vector3d bmax = Eigen::Vector3d::Constant(-std::numeric_limits<double>::infinity());
+        for (int i = 0; i < nVerts; ++i) {
+            bmin = bmin.cwiseMin(V.row(i).transpose());
+            bmax = bmax.cwiseMax(V.row(i).transpose());
+        }
+        mesh.bboxMin = bmin.cast<float>();
+        mesh.bboxMax = bmax.cast<float>();
+    }
 
     const bgfx::Memory* vbMem = bgfx::copy(vertices.data(), static_cast<uint32_t>(nVerts * sizeof(PosNormalColorVertex)));
     mesh.vbh = bgfx::createVertexBuffer(vbMem, PosNormalColorVertex::layout);
@@ -205,7 +227,7 @@ void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
         vertices[static_cast<size_t>(i)].x = static_cast<float>(mesh.V(i, 0));
         vertices[static_cast<size_t>(i)].y = static_cast<float>(mesh.V(i, 1));
         vertices[static_cast<size_t>(i)].z = static_cast<float>(mesh.V(i, 2));
-        if (mesh.N.size() == mesh.V.rows()) {
+        if (mesh.N.rows() == mesh.V.rows()) {
             vertices[static_cast<size_t>(i)].nx = mesh.N(i, 0);
             vertices[static_cast<size_t>(i)].ny = mesh.N(i, 1);
             vertices[static_cast<size_t>(i)].nz = mesh.N(i, 2);
@@ -264,25 +286,38 @@ void Renderer::DrawAllMeshes(const Eigen::Vector3f& eyePos) {
         if (!meshes_[i].transparent)
             DrawMesh(i);
     }
-
-    // Second pass: transparent (sorted back-to-front)
-    std::vector<std::pair<float,int>> transparent;
-    transparent.reserve(meshes_.size());
+    // Second pass: transparent meshes (unsorted — avoids glitches during rotation)
     for (int i = 0; i < static_cast<int>(meshes_.size()); ++i) {
-        if (!meshes_[i].transparent) continue;
-        const auto& m = meshes_[i];
-        if (m.V.rows() > 0) {
-            Eigen::Vector3d centroid = m.V.colwise().mean();
-            Eigen::Vector3f c = centroid.cast<float>();
-            float d2 = (c - eyePos).squaredNorm();
-            transparent.emplace_back(d2, i);
-        } else {
-            transparent.emplace_back(0.0f, i);
-        }
+        if (meshes_[i].transparent)
+            DrawMesh(i);
     }
-    std::sort(transparent.begin(), transparent.end(), [](const auto& a, const auto& b){ return a.first > b.first; });
-    for (auto &p : transparent)
-        DrawMesh(p.second);
+
+    // Draw pivot marker if requested (small RGB axes at pivotPoint_)
+    if (showPivotMarker_) {
+        // Scale marker with camera distance so it's visible at different zoom levels
+        float dist = (pivotPoint_ - eyePos).norm();
+        float size = pivotMarkerSize_;
+        if (dist > 1e-6f) size = std::max(pivotMarkerSize_, dist * 0.02f);
+
+        std::vector<PosColorVertex> verts;
+        verts.reserve(6);
+        PosColorVertex v;
+        uint32_t red = PackColor(1.0f, 0.0f, 0.0f);
+        uint32_t green = PackColor(0.0f, 1.0f, 0.0f);
+        uint32_t blue = PackColor(0.0f, 0.0f, 1.0f);
+
+        // X axis
+        v.x = pivotPoint_.x() - size; v.y = pivotPoint_.y(); v.z = pivotPoint_.z(); v.abgr = red; verts.push_back(v);
+        v.x = pivotPoint_.x() + size; v.y = pivotPoint_.y(); v.z = pivotPoint_.z(); v.abgr = red; verts.push_back(v);
+        // Y axis
+        v.x = pivotPoint_.x(); v.y = pivotPoint_.y() - size; v.z = pivotPoint_.z(); v.abgr = green; verts.push_back(v);
+        v.x = pivotPoint_.x(); v.y = pivotPoint_.y() + size; v.z = pivotPoint_.z(); v.abgr = green; verts.push_back(v);
+        // Z axis
+        v.x = pivotPoint_.x(); v.y = pivotPoint_.y(); v.z = pivotPoint_.z() - size; v.abgr = blue; verts.push_back(v);
+        v.x = pivotPoint_.x(); v.y = pivotPoint_.y(); v.z = pivotPoint_.z() + size; v.abgr = blue; verts.push_back(v);
+
+        DrawLines(verts);
+    }
 }
 
 void Renderer::DrawLines(const std::vector<PosColorVertex>& vertices) {
@@ -332,6 +367,21 @@ void Renderer::SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Ve
 void Renderer::SetDoubleSided(bool enabled)
 {
     doubleSided_[0] = enabled ? 1.0f : 0.0f;
+}
+
+void Renderer::SetPivotPoint(const Eigen::Vector3f& pivot)
+{
+    pivotPoint_ = pivot;
+}
+
+void Renderer::SetShowPivotMarker(bool show)
+{
+    showPivotMarker_ = show;
+}
+
+void Renderer::SetPivotMarkerSize(float size)
+{
+    pivotMarkerSize_ = size;
 }
 
 const GpuMesh* Renderer::GetMesh(int meshId) const {

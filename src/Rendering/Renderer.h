@@ -49,6 +49,10 @@ struct GpuMesh {
     Eigen::MatrixXi F;
     // Per-vertex smooth normals (rows == V.rows(), 3 cols)
     Eigen::MatrixXf N;
+    // Cached centroid and bbox (computed at upload time to avoid per-frame work)
+    Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
+    Eigen::Vector3f bboxMin  = Eigen::Vector3f::Zero();
+    Eigen::Vector3f bboxMax  = Eigen::Vector3f::Zero();
 };
 
 class Renderer {
@@ -90,8 +94,13 @@ public:
     void SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower = 32.0f, float lightIntensity = 1.0f);
     // Enable or disable double-sided normals globally
     void SetDoubleSided(bool enabled);
-    // Draw all meshes (opaque first, then transparent sorted back-to-front)
+    // Draw all meshes (opaque first, then transparent)
     void DrawAllMeshes(const Eigen::Vector3f& eyePos);
+
+    // Pivot marker (debug): set pivot world position and toggle marker rendering
+    void SetPivotPoint(const Eigen::Vector3f& pivot);
+    void SetShowPivotMarker(bool show);
+    void SetPivotMarkerSize(float size);
 
     // Access stored mesh data for ray casting
     const GpuMesh* GetMesh(int meshId) const;
@@ -125,6 +134,10 @@ private:
 
     std::vector<GpuMesh> meshes_;
     bool initialized_ = false;
+    // Pivot marker state
+    Eigen::Vector3f pivotPoint_ = Eigen::Vector3f::Zero();
+    bool showPivotMarker_ = false;
+    float pivotMarkerSize_ = 0.05f;
 };
 
 } // namespace Debugger3DS

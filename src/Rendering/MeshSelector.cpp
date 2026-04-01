@@ -204,6 +204,33 @@ void MeshSelector::ClearSelection() {
     if (selectionCallback_) selectionCallback_(std::any{});
 }
 
+Eigen::Vector3f MeshSelector::GetSelectionCenter() const {
+    bool any = false;
+    Eigen::Vector3d minPt(std::numeric_limits<double>::max(), std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
+    Eigen::Vector3d maxPt(std::numeric_limits<double>::lowest(), std::numeric_limits<double>::lowest(), std::numeric_limits<double>::lowest());
+
+    auto addBBox = [&](int meshId) {
+        auto it = std::find(meshIds_.begin(), meshIds_.end(), meshId);
+        if (it == meshIds_.end()) return;
+        int idx = static_cast<int>(std::distance(meshIds_.begin(), it));
+        const AABB& b = meshBBoxes_[idx];
+        minPt = minPt.cwiseMin(b.min);
+        maxPt = maxPt.cwiseMax(b.max);
+        any = true;
+    };
+
+    if (selectedMeshId_ >= 0) addBBox(selectedMeshId_);
+    for (int id : additionalSelectedIds_) addBBox(id);
+
+    if (!any) return Eigen::Vector3f::Zero();
+    Eigen::Vector3d center = (minPt + maxPt) * 0.5;
+    return center.cast<float>();
+}
+
+bool MeshSelector::HasSelection() const {
+    return selectedMeshId_ >= 0 || !additionalSelectedIds_.empty();
+}
+
 int MeshSelector::FindMeshUnderCursor(double mouseX, double mouseY, uint16_t viewportW, uint16_t viewportH) {
     if (!renderer_ || !camera_) return -1;
 

@@ -11,25 +11,65 @@ void CameraController::Init(float fovDeg, float near, float far) {
     farPlane_ = far;
 }
 
-void CameraController::OnMouseDrag(float deltaX, float deltaY,
+void CameraController::OnMouseDrag(float prevX, float prevY, float currX, float currY,
                                     bool leftDrag, bool rightDrag,
-                                    float viewportW, float viewportH) {
+                                    float viewportW, float viewportH,
+                                    float pivotScreenX, float pivotScreenY) {
+    // Determine pivot in pixels; default to viewport center
+    float centerX = (pivotScreenX >= 0.0f) ? pivotScreenX : (viewportW * 0.5f);
+    float centerY = (pivotScreenY >= 0.0f) ? pivotScreenY : (viewportH * 0.5f);
+
     if (leftDrag) {
-        // Trackball rotation
-        float angle = std::sqrt(deltaX * deltaX + deltaY * deltaY) * rotateSpeed_;
-        if (angle > 1e-6f) {
-            // Rotation axis is perpendicular to mouse motion in camera space
-            // Camera right = rotation * X, camera up = rotation * Y
-            Eigen::Vector3f right = rotation_ * Eigen::Vector3f::UnitX();
-            Eigen::Vector3f up    = rotation_ * Eigen::Vector3f::UnitY();
-            Eigen::Vector3f axis  = (-deltaX * up - deltaY * right).normalized();
-            Eigen::Quaternionf rot(Eigen::AngleAxisf(angle, axis));
-            rotation_ = rot * rotation_;
+        // orientation sign controls horizontal direction: default flipped so left/right match user
+        float orientationSign = invertRotation_ ? 1.0f : -1.0f;
+
+        if (rotationMode_ == RotationMode::Arcball) {
+            // Arcball rotation: map previous and current mouse positions to the unit sphere
+            Eigen::Vector3f v0 = ArcballVector(prevX, prevY, viewportW, viewportH, centerX, centerY);
+            Eigen::Vector3f v1 = ArcballVector(currX, currY, viewportW, viewportH, centerX, centerY);
+
+            Eigen::Vector3f axis = v0.cross(v1);
+            float axisLen = axis.norm();
+            if (axisLen > 1e-6f) {
+                axis /= axisLen;
+                float dot = std::clamp(v0.dot(v1), -1.0f, 1.0f);
+                // Direction controlled by invertRotation_; angle scaled by rotateSpeed_
+                float angle = orientationSign * std::acos(dot) * rotateSpeed_;
+                Eigen::Quaternionf rot(Eigen::AngleAxisf(angle, axis));
+                rotation_ = rot * rotation_;
+                rotation_.normalize();
+            }
+        } else {
+            // Free turntable-like rotation (not locked): horizontal drags => yaw around world-up (Y),
+            // vertical drags => pitch around camera-right (X). Vertical sign inverted to match user expectation.
+            float deltaX = currX - prevX;
+            float deltaY = currY - prevY;
+
+            float fracX = deltaX / viewportW;
+            float fracY = deltaY / viewportH;
+
+            // Map full-width drag -> 360deg yaw; full-height drag -> 180deg pitch
+            // Horizontal sign respects the invert flag; vertical mapping is fixed so only
+            // left/right are inverted when the setting is toggled.
+            float angleYaw = orientationSign * (2.0f * static_cast<float>(M_PI)) * fracX * rotateSpeed_;
+            float anglePitch = -static_cast<float>(M_PI) * fracY * rotateSpeed_;
+
+            // Yaw about world Z (blue axis)
+            Eigen::Quaternionf qYaw(Eigen::AngleAxisf(angleYaw, Eigen::Vector3f::UnitZ()));
+            Eigen::Quaternionf rotYawed = qYaw * rotation_;
+
+            // Pitch about camera's right axis after yaw
+            Eigen::Vector3f rightAfterYaw = rotYawed * Eigen::Vector3f::UnitX();
+            Eigen::Quaternionf qPitch(Eigen::AngleAxisf(anglePitch, rightAfterYaw));
+
+            rotation_ = qPitch * rotYawed;
             rotation_.normalize();
         }
     }
     if (rightDrag) {
-        // Pan: move target in camera's XY plane
+        // Pan: move target in camera's XY plane using pixel delta
+        float deltaX = currX - prevX;
+        float deltaY = currY - prevY;
         Eigen::Vector3f right = rotation_ * Eigen::Vector3f::UnitX();
         Eigen::Vector3f up    = rotation_ * Eigen::Vector3f::UnitY();
         float scale = distance_ * panSpeed_;
@@ -107,6 +147,26 @@ void CameraController::ZoomToFit(const Eigen::Vector3d& bboxMin, const Eigen::Ve
     anim_.startTime = std::chrono::steady_clock::now();
 }
 
+void CameraController::SetRotationMode(RotationMode mode)
+{
+    rotationMode_ = mode;
+}
+
+CameraController::RotationMode CameraController::GetRotationMode() const
+{
+    return rotationMode_;
+}
+
+void CameraController::SetInvertRotation(bool invert)
+{
+    invertRotation_ = invert;
+}
+
+bool CameraController::GetInvertRotation() const
+{
+    return invertRotation_;
+}
+
 Eigen::Matrix4f CameraController::GetViewMatrix() const {
     // Camera position = target + rotation * (0, 0, distance)
     Eigen::Vector3f forward = rotation_ * Eigen::Vector3f(0, 0, distance_);
@@ -156,10 +216,13 @@ Eigen::Matrix4f CameraController::GetProjectionMatrix(float aspectRatio, bool ho
 }
 
 Eigen::Vector3f CameraController::ArcballVector(float x, float y, float w, float h) const {
-    // Map pixel coordinates to [-1, 1]
+    // Default mapping around viewport center
+    float centerX = w * 0.5f;
+    float centerY = h * 0.5f;
+    // Map pixel coordinates to [-1, 1] relative to center
     Eigen::Vector3f v(
-        (2.0f * x - w) / w,
-        (h - 2.0f * y) / h,
+        (2.0f * (x - centerX)) / w,
+        (2.0f * (centerY - y)) / h,
         0.0f
     );
     float d = v.x() * v.x() + v.y() * v.y();
@@ -168,6 +231,64 @@ Eigen::Vector3f CameraController::ArcballVector(float x, float y, float w, float
     else
         v.normalize();
     return v;
+}
+
+Eigen::Vector3f CameraController::ArcballVector(float x, float y, float w, float h, float centerX, float centerY) const {
+    // Map pixel coordinates to [-1, 1] relative to provided center
+    Eigen::Vector3f v(
+        (2.0f * (x - centerX)) / w,
+        (2.0f * (centerY - y)) / h,
+        0.0f
+    );
+    float d = v.x() * v.x() + v.y() * v.y();
+    if (d <= 1.0f)
+        v.z() = std::sqrt(1.0f - d);
+    else
+        v.normalize();
+    return v;
+}
+
+void CameraController::SetRotateSpeed(float speed)
+{
+    rotateSpeed_ = speed;
+}
+
+void CameraController::SetTarget(const Eigen::Vector3f& target)
+{
+    target_ = target;
+}
+
+void CameraController::SetTargetKeepEye(const Eigen::Vector3f& target)
+{
+    // Preserve the current eye position while changing the orbit center.
+    Eigen::Vector3f eye = GetEyePosition();
+
+    Eigen::Vector3f offset = eye - target;
+    float d = offset.norm();
+    if (d < 1e-7f) {
+        target_ = target;
+        return;
+    }
+
+    distance_ = d;
+    target_ = target;
+
+    // Reconstruct rotation from the offset direction using pure yaw/pitch
+    // (matching the turntable convention) so no roll is introduced.
+    // The turntable builds: rotation = qPitch(around right) * qYaw(around Z).
+    // With identity rotation the backward dir is (0,0,1).
+    // After yaw θ around Z and pitch φ around the resulting right axis:
+    //   backward = (sin(θ)*sin(φ), -cos(θ)*sin(φ), cos(φ))
+    // Solving: φ = atan2(‖xy‖, z),  θ = atan2(x, -y)
+    Eigen::Vector3f dir = offset / d;
+    float xyLen = std::sqrt(dir.x() * dir.x() + dir.y() * dir.y());
+    float pitch = std::atan2(xyLen, dir.z());
+    float yaw = std::atan2(dir.x(), -dir.y());
+
+    Eigen::Quaternionf qYaw(Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ()));
+    Eigen::Vector3f rightAxis = qYaw * Eigen::Vector3f::UnitX();
+    Eigen::Quaternionf qPitch(Eigen::AngleAxisf(pitch, rightAxis));
+    rotation_ = (qPitch * qYaw).normalized();
 }
 
 } // namespace Debugger3DS

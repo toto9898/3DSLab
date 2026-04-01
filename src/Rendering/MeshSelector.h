@@ -38,8 +38,15 @@ public:
     // Get user data for currently selected mesh
     const std::any& GetSelectedUserData() const { return selectedUserData_; }
 
+    // Whether any mesh is currently selected
+    bool HasSelection() const;
+
     // Get mesh name by index
     std::string GetMeshName(int index) const;
+
+    // Return center of bounding box covering currently selected meshes.
+    // If no selection, returns a zero vector.
+    Eigen::Vector3f GetSelectionCenter() const;
 
     // Highlight the selected mesh
     void HighlightSelected();

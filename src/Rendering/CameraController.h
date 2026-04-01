@@ -17,11 +17,11 @@ public:
     // Initialize with default camera state
     void Init(float fovDeg = 45.0f, float near = 0.1f, float far = 10000.0f);
 
-    // Process input each frame. Returns true if the camera changed.
-    // deltaX/Y: mouse delta this frame (0 when not dragging)
+    // Process mouse motion when dragging. Returns true if the camera changed.
+    // prevX/Y: previous mouse position in pixels, currX/Y: current mouse position in pixels
     // leftDrag: left button held, rightDrag: right button held
-    // scrollDelta: scroll wheel delta
-    void OnMouseDrag(float deltaX, float deltaY, bool leftDrag, bool rightDrag, float viewportW, float viewportH);
+    // pivotScreenX/Y: pixel coordinates of the rotation pivot in window space; pass negative to use viewport center
+    void OnMouseDrag(float prevX, float prevY, float currX, float currY, bool leftDrag, bool rightDrag, float viewportW, float viewportH, float pivotScreenX = -1.0f, float pivotScreenY = -1.0f);
     void OnScroll(float delta);
 
     // Update zoom animation. Call every frame.
@@ -44,6 +44,25 @@ public:
 
     float GetFov() const { return fovDeg_; }
 
+    // Adjust rotation sensitivity (arcball speed)
+    void SetRotateSpeed(float speed);
+
+    // Rotation mode: Arcball (sphere) or Turntable (constrained yaw/pitch)
+    enum class RotationMode { Arcball = 0, Turntable = 1 };
+    void SetRotationMode(RotationMode mode);
+    RotationMode GetRotationMode() const;
+
+    // Invert both horizontal and vertical rotation directions
+    void SetInvertRotation(bool invert);
+    bool GetInvertRotation() const;
+
+    // Set the look-at target directly (pivot point for rotations)
+    void SetTarget(const Eigen::Vector3f& target);
+
+    // Set the look-at target but preserve the current eye position (don't move the camera).
+    // Useful when changing the rotation/pivot center without translating the view.
+    void SetTargetKeepEye(const Eigen::Vector3f& target);
+
 private:
     // Trackball: rotation is stored as a quaternion
     Eigen::Quaternionf rotation_ = Eigen::Quaternionf::Identity();
@@ -53,7 +72,7 @@ private:
     float nearPlane_ = 0.1f;
     float farPlane_ = 10000.0f;
     float panSpeed_ = 0.005f;
-    float rotateSpeed_ = 0.005f;
+    float rotateSpeed_ = 1.0f;
     float zoomSpeed_ = 0.1f;
 
     // Smooth zoom animation
@@ -69,6 +88,12 @@ private:
 
     // Arcball helper: map screen coords to unit sphere
     Eigen::Vector3f ArcballVector(float x, float y, float w, float h) const;
+    // Overload that maps relative to a specific center (in pixels)
+    Eigen::Vector3f ArcballVector(float x, float y, float w, float h, float centerX, float centerY) const;
+
+    // Rotation mode (defaults to Turntable for conventional viewer feel)
+    RotationMode rotationMode_ = RotationMode::Turntable;
+    bool invertRotation_ = false;
 };
 
 } // namespace Debugger3DS
