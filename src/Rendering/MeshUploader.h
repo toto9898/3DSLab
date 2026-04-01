@@ -2,6 +2,7 @@
 
 #include "Renderer.h"
 #include "Scene.h"
+#include "Mesh.h"
 #include "MeshSelector.h"
 #include "ObjectNode.h"
 #include <vector>
@@ -19,6 +20,7 @@ public:
         Eigen::MatrixXi F;
         ObjectNodePtr node;
         std::string meshName;
+        std::shared_ptr<Mesh> sourceMesh;  // original parsed mesh (for materials)
     };
 
     // Prepare mesh data from scene (with transforms applied non-destructively)

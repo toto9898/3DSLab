@@ -1,4 +1,5 @@
 #include "MeshUploader.h"
+#include "Material.h"
 #include <iostream>
 #include <ranges>
 #include <any>
@@ -17,6 +18,7 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
             MeshEntry entry;
             mesh->ToEigenMatrices(entry.V, entry.F);
             entry.meshName = mesh->name;
+            entry.sourceMesh = mesh;
             meshData.push_back(std::move(entry));
         }
     } else {
@@ -29,6 +31,7 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
                     entry.F.col(1).swap(entry.F.col(2));
                 entry.node = node;
                 entry.meshName = node->associatedMeshName;
+                entry.sourceMesh = node->associatedMesh;
                 meshData.push_back(std::move(entry));
             }
         }
@@ -51,18 +54,47 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
         if (entry.meshName == "$$$DUMMY")
             continue;
 
-        // Generate a distinct color per mesh
-        float r, g, b;
-        if (uploadedCount == 0) {
-            r = 0.8f; g = 0.8f; b = 0.8f; // first mesh: light gray
-        } else {
-            r = static_cast<float>(uploadedCount * 0.3 - std::floor(uploadedCount * 0.3));
-            g = static_cast<float>(uploadedCount * 0.7 - std::floor(uploadedCount * 0.7));
-            b = static_cast<float>(uploadedCount * 0.5 - std::floor(uploadedCount * 0.5));
+        // Extract per-face material properties
+        int nFaces = static_cast<int>(entry.F.rows());
+        std::vector<FaceMaterial> faceMats(static_cast<size_t>(nFaces));
+        bool hasMaterialColors = false;
+
+        if (entry.sourceMesh && static_cast<int>(entry.sourceMesh->faces.size()) == nFaces) {
+            for (int f = 0; f < nFaces; ++f) {
+                const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                if (mat) {
+                    hasMaterialColors = true;
+                    auto& fm = faceMats[static_cast<size_t>(f)];
+                    fm.ambient = mat->ambient;
+                    fm.diffuse = mat->diffuse;
+                    fm.specular = mat->specular;
+                    fm.shininess = mat->shininess;
+                    fm.transparency = mat->transparency;
+                    fm.selfIllumination = mat->selfIllumination;
+                    fm.specularStrength = mat->shininessPercent;
+                }
+            }
         }
 
-        uint32_t color = Renderer::PackColor(r, g, b);
-        int meshId = renderer.UploadMesh(entry.V, entry.F, color);
+        uint32_t color;
+        int meshId;
+        if (hasMaterialColors) {
+            color = Renderer::PackColor(
+                faceMats[0].diffuse.x(), faceMats[0].diffuse.y(), faceMats[0].diffuse.z());
+            meshId = renderer.UploadMesh(entry.V, entry.F, faceMats);
+        } else {
+            // Fallback: generate a distinct color per mesh
+            float r, g, b;
+            if (uploadedCount == 0) {
+                r = 0.8f; g = 0.8f; b = 0.8f;
+            } else {
+                r = static_cast<float>(uploadedCount * 0.3 - std::floor(uploadedCount * 0.3));
+                g = static_cast<float>(uploadedCount * 0.7 - std::floor(uploadedCount * 0.7));
+                b = static_cast<float>(uploadedCount * 0.5 - std::floor(uploadedCount * 0.5));
+            }
+            color = Renderer::PackColor(r, g, b);
+            meshId = renderer.UploadMesh(entry.V, entry.F, color);
+        }
 
         if (entry.node) {
             auto nodeTransform = scene.GetNodeGlobalTransform(entry.node);

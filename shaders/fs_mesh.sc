@@ -1,9 +1,9 @@
-$input v_color0, v_normal, v_worldPos
+$input v_color0, v_color1, v_normal, v_worldPos, v_specular
 
 #include <bgfx_shader.sh>
 
 uniform vec4 u_lightDir;   // xyz = light direction (toward light), w unused
-uniform vec4 u_eyePos;     // xyz = camera position, w = specular power
+uniform vec4 u_eyePos;     // xyz = camera position, w unused
 uniform vec4 u_lightIntensity; // x = global light intensity multiplier
 uniform vec4 u_doubleSided; // x = 1.0 -> enable two-sided normals
 
@@ -38,17 +38,30 @@ void main()
     if (u_doubleSided.x > 0.5 && dot(N, V) < 0.0)
         N = -N;
 
-    // Read vertex color (assumed sRGB) and convert to linear for lighting
-    vec3 color_srgb = v_color0.rgb;
+    // Per-vertex material properties
+    // v_color0.rgb = diffuse color (sRGB), v_color0.a = opacity (1 - transparency)
+    // v_color1.rgb = ambient color (sRGB), v_color1.a = self-illumination factor
+    // v_specular.rgb = specular color (linear), v_specular.a = shininess exponent
+    vec3 diffuseColor = srgb_to_linear(v_color0.rgb);
     float alpha = v_color0.a;
-    vec3 color = srgb_to_linear(color_srgb);
+    vec3 ambientColor = srgb_to_linear(v_color1.rgb);
+    float selfIllum = v_color1.a;
+    vec3 specularColor = v_specular.rgb;
+    float shininess = max(v_specular.a, 1.0);
 
     // Lighting terms (compute in linear space)
-    float ambient = 0.08; // lower ambient for better contrast
-    float diff = max(dot(N, L), 0.0) * 1.0; // stronger diffuse
-    float spec = pow(max(dot(N, H), 0.0), u_eyePos.w) * 1.0;
+    float NdotL = max(dot(N, L), 0.0);
+    float NdotH = max(dot(N, H), 0.0);
+    float spec = pow(NdotH, shininess);
 
-    vec3 lit_linear = (color * (ambient + diff) + spec * vec3(1.0, 1.0, 1.0)) * u_lightIntensity.x;
+    vec3 lit_linear = ambientColor * diffuseColor
+                    + NdotL * diffuseColor
+                    + spec * specularColor;
+
+    // Self-illumination: blend toward unshaded diffuse color
+    lit_linear = mix(lit_linear, diffuseColor, selfIllum);
+
+    lit_linear = lit_linear * u_lightIntensity.x;
     lit_linear = max(lit_linear, vec3(0.0, 0.0, 0.0));
 
     // Convert back to sRGB for output

@@ -95,4 +95,24 @@ namespace Debugger3DS {
         return true;
     }
 
+    //==============================================================================
+    // Texture Map
+    //==============================================================================
+
+    bool MatMapNameChunk::ReadData(Importer& importer) {
+        if (!GetCurrentMaterial(importer)) {
+            return false;
+        }
+        
+        std::string mapName;
+        if (!Read(mapName)) {
+            return false;
+        }
+        
+        targetMaterial_->textureMap = mapName;
+        
+        logging::log << "Material Texture Map: " << mapName << std::endl;
+        return true;
+    }
+
 } // namespace Debugger3DS

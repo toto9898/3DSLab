@@ -136,6 +136,30 @@ void Renderer::EndFrame() {
 
 int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
                           uint32_t faceColor) {
+    std::vector<FaceMaterial> mats(static_cast<size_t>(F.rows()));
+    // Unpack ABGR to float RGB for diffuse
+    float r = (faceColor & 0xFF) / 255.0f;
+    float g = ((faceColor >> 8) & 0xFF) / 255.0f;
+    float b = ((faceColor >> 16) & 0xFF) / 255.0f;
+    for (auto& m : mats) m.diffuse = Eigen::Vector3f(r, g, b);
+    return UploadMesh(V, F, mats);
+}
+
+int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                          const std::vector<uint32_t>& faceColors) {
+    std::vector<FaceMaterial> mats(static_cast<size_t>(F.rows()));
+    for (size_t f = 0; f < mats.size(); ++f) {
+        uint32_t c = (f < faceColors.size()) ? faceColors[f] : 0xFFCCCCCCu;
+        mats[f].diffuse = Eigen::Vector3f(
+            (c & 0xFF) / 255.0f,
+            ((c >> 8) & 0xFF) / 255.0f,
+            ((c >> 16) & 0xFF) / 255.0f);
+    }
+    return UploadMesh(V, F, mats);
+}
+
+int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                          const std::vector<FaceMaterial>& faceMaterials) {
     int nVerts = static_cast<int>(V.rows());
     int nFaces = static_cast<int>(F.rows());
 
@@ -160,21 +184,57 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
         indices[3 * f + 2] = static_cast<uint32_t>(i2);
     }
 
-    // Build shared-vertex buffer with per-vertex smooth normals
+    // Build shared-vertex buffer with per-vertex smooth normals and per-face material
     std::vector<PosNormalColorVertex> vertices(static_cast<size_t>(nVerts));
+    // Initialize per-vertex material from face materials (first face referencing a vertex wins)
+    std::vector<bool> matAssigned(static_cast<size_t>(nVerts), false);
+    struct VertMat { uint32_t diffuseAbgr; uint32_t ambientAbgr; float specR, specG, specB, shininess; };
+    std::vector<VertMat> vertMats(static_cast<size_t>(nVerts));
+    // Default material
+    {
+        VertMat def;
+        def.diffuseAbgr = PackColor(0.8f, 0.8f, 0.8f, 1.0f);
+        def.ambientAbgr = PackColor(0.2f, 0.2f, 0.2f, 0.0f);
+        def.specR = 0.0f; def.specG = 0.0f; def.specB = 0.0f; def.shininess = 0.0f;
+        std::fill(vertMats.begin(), vertMats.end(), def);
+    }
+    for (int f = 0; f < nFaces; ++f) {
+        const auto& fm = (f < static_cast<int>(faceMaterials.size())) ? faceMaterials[static_cast<size_t>(f)] : faceMaterials[0];
+        float opacity = 1.0f - fm.transparency;
+        uint32_t diffAbgr = PackColor(fm.diffuse.x(), fm.diffuse.y(), fm.diffuse.z(), opacity);
+        uint32_t ambAbgr  = PackColor(fm.ambient.x(), fm.ambient.y(), fm.ambient.z(), fm.selfIllumination);
+        for (int c = 0; c < 3; ++c) {
+            int vi = F(f, c);
+            if (!matAssigned[static_cast<size_t>(vi)]) {
+                vertMats[static_cast<size_t>(vi)].diffuseAbgr = diffAbgr;
+                vertMats[static_cast<size_t>(vi)].ambientAbgr = ambAbgr;
+                vertMats[static_cast<size_t>(vi)].specR = fm.specular.x() * fm.specularStrength;
+                vertMats[static_cast<size_t>(vi)].specG = fm.specular.y() * fm.specularStrength;
+                vertMats[static_cast<size_t>(vi)].specB = fm.specular.z() * fm.specularStrength;
+                vertMats[static_cast<size_t>(vi)].shininess = fm.shininess;
+                matAssigned[static_cast<size_t>(vi)] = true;
+            }
+        }
+    }
     for (int i = 0; i < nVerts; ++i) {
         Eigen::Vector3f n(accum(i, 0), accum(i, 1), accum(i, 2));
         float len = n.norm();
         if (len > 1e-8f) n /= len;
         else n = Eigen::Vector3f(0, 1, 0);
 
-        vertices[static_cast<size_t>(i)].x = static_cast<float>(V(i, 0));
-        vertices[static_cast<size_t>(i)].y = static_cast<float>(V(i, 1));
-        vertices[static_cast<size_t>(i)].z = static_cast<float>(V(i, 2));
-        vertices[static_cast<size_t>(i)].nx = n.x();
-        vertices[static_cast<size_t>(i)].ny = n.y();
-        vertices[static_cast<size_t>(i)].nz = n.z();
-        vertices[static_cast<size_t>(i)].abgr = faceColor;
+        auto& v = vertices[static_cast<size_t>(i)];
+        v.x = static_cast<float>(V(i, 0));
+        v.y = static_cast<float>(V(i, 1));
+        v.z = static_cast<float>(V(i, 2));
+        v.nx = n.x();
+        v.ny = n.y();
+        v.nz = n.z();
+        v.abgr = vertMats[static_cast<size_t>(i)].diffuseAbgr;
+        v.abgr1 = vertMats[static_cast<size_t>(i)].ambientAbgr;
+        v.specR = vertMats[static_cast<size_t>(i)].specR;
+        v.specG = vertMats[static_cast<size_t>(i)].specG;
+        v.specB = vertMats[static_cast<size_t>(i)].specB;
+        v.shininess = vertMats[static_cast<size_t>(i)].shininess;
     }
 
     GpuMesh mesh;
@@ -223,20 +283,27 @@ void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
     // Rebuild vertex buffer with new color using stored per-vertex normals
     int nVerts = static_cast<int>(mesh.V.rows());
     std::vector<PosNormalColorVertex> vertices(static_cast<size_t>(nVerts));
+    uint32_t ambientAbgr = PackColor(0.15f, 0.15f, 0.15f, 0.0f);
     for (int i = 0; i < nVerts; ++i) {
-        vertices[static_cast<size_t>(i)].x = static_cast<float>(mesh.V(i, 0));
-        vertices[static_cast<size_t>(i)].y = static_cast<float>(mesh.V(i, 1));
-        vertices[static_cast<size_t>(i)].z = static_cast<float>(mesh.V(i, 2));
+        auto& v = vertices[static_cast<size_t>(i)];
+        v.x = static_cast<float>(mesh.V(i, 0));
+        v.y = static_cast<float>(mesh.V(i, 1));
+        v.z = static_cast<float>(mesh.V(i, 2));
         if (mesh.N.rows() == mesh.V.rows()) {
-            vertices[static_cast<size_t>(i)].nx = mesh.N(i, 0);
-            vertices[static_cast<size_t>(i)].ny = mesh.N(i, 1);
-            vertices[static_cast<size_t>(i)].nz = mesh.N(i, 2);
+            v.nx = mesh.N(i, 0);
+            v.ny = mesh.N(i, 1);
+            v.nz = mesh.N(i, 2);
         } else {
-            vertices[static_cast<size_t>(i)].nx = 0.0f;
-            vertices[static_cast<size_t>(i)].ny = 1.0f;
-            vertices[static_cast<size_t>(i)].nz = 0.0f;
+            v.nx = 0.0f;
+            v.ny = 1.0f;
+            v.nz = 0.0f;
         }
-        vertices[static_cast<size_t>(i)].abgr = abgr;
+        v.abgr = abgr;
+        v.abgr1 = ambientAbgr;
+        v.specR = 0.0f;
+        v.specG = 0.0f;
+        v.specB = 0.0f;
+        v.shininess = 0.0f;
     }
 
     if (bgfx::isValid(mesh.vbh)) bgfx::destroy(mesh.vbh);

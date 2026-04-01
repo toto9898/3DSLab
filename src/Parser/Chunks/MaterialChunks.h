@@ -44,6 +44,31 @@ namespace Debugger3DS {
     };
     
     // ============================================================================
+    // Material Color Chunks (0xA010, 0xA020, 0xA030)
+    // ============================================================================
+    
+    // Material ambient color chunk (0xA010) - Contains color chunks
+    class MatAmbientChunk : public MaterialContainerChunk {
+    public:
+        using MaterialContainerChunk::MaterialContainerChunk;
+        std::string GetTypeName() const override { return "MAT_AMBIENT"; }
+    };
+    
+    // Material diffuse color chunk (0xA020) - Contains color chunks
+    class MatDiffuseChunk : public MaterialContainerChunk {
+    public:
+        using MaterialContainerChunk::MaterialContainerChunk;
+        std::string GetTypeName() const override { return "MAT_DIFFUSE"; }
+    };
+    
+    // Material specular color chunk (0xA030) - Contains color chunks
+    class MatSpecularChunk : public MaterialContainerChunk {
+    public:
+        using MaterialContainerChunk::MaterialContainerChunk;
+        std::string GetTypeName() const override { return "MAT_SPECULAR"; }
+    };
+    
+    // ============================================================================
     // Material Shininess Chunks (0xA040, 0xA041)
     // ============================================================================
     
@@ -113,6 +138,26 @@ namespace Debugger3DS {
 
         bool ReadData(Importer& importer) override;
         std::string GetTypeName() const override { return "MAT_SHADING"; }
+    };
+    
+    // ============================================================================
+    // Texture Map Chunks (0xA200, 0xA300)
+    // ============================================================================
+    
+    // Material texture map chunk (0xA200) - Contains map name and parameters
+    class MatTexmapChunk : public MaterialContainerChunk {
+    public:
+        using MaterialContainerChunk::MaterialContainerChunk;
+        std::string GetTypeName() const override { return "MAT_TEXMAP"; }
+    };
+    
+    // Material map filename chunk (0xA300)
+    class MatMapNameChunk : public MaterialContainerChunk {
+    public:
+        using MaterialContainerChunk::MaterialContainerChunk;
+
+        bool ReadData(Importer& importer) override;
+        std::string GetTypeName() const override { return "MAT_MAPNAME"; }
     };
     
 } // namespace Debugger3DS

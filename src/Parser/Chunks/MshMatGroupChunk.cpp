@@ -5,17 +5,28 @@
 namespace Debugger3DS {
     
     bool MshMatGroupChunk::ReadData(Importer& importer) {
-        // Read material name (but use current material instead of searching)
+        // Read material name
         std::string materialName;
         if (!Read(materialName)) {
             return false;
         }
         
-        // Get references to current mesh and current material
+        // Get current mesh
         targetMesh_ = importer.GetCurrentMesh();
-        targetMaterial_ = importer.GetCurrentMaterial();
+        if (!targetMesh_) {
+            return false;
+        }
         
-        if (!targetMesh_ || !targetMaterial_) {
+        // Look up the material by name from the scene
+        for (const auto& mat : importer.GetScene().materials) {
+            if (mat->name == materialName) {
+                targetMaterial_ = mat;
+                break;
+            }
+        }
+        
+        if (!targetMaterial_) {
+            logging::log << "Material Group: material '" << materialName << "' not found" << std::endl;
             return false;
         }
         

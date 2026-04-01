@@ -29,10 +29,13 @@ namespace Debugger3DS {
         
         switch (parentChunkId) {
             case ChunkType::MAT_SHININESS:
+                targetMaterial_->shininess = normalizedValue * 128.0f;
+                logging::log << "Material Shininess: " << percentage << "% (exponent " << targetMaterial_->shininess << ")" << std::endl;
+                break;
+                
             case ChunkType::MAT_SHIN2PCT:
                 targetMaterial_->shininessPercent = normalizedValue;
-                targetMaterial_->shininess = normalizedValue * 128.0f; // Convert to typical shininess range
-                logging::log << "Material Shininess: " << percentage << "% (" << targetMaterial_->shininess << ")" << std::endl;
+                logging::log << "Material Specular Strength: " << percentage << "%" << std::endl;
                 break;
                 
             case ChunkType::MAT_TRANSPARENCY:
@@ -86,10 +89,13 @@ namespace Debugger3DS {
         
         switch (parentChunkId) {
             case ChunkType::MAT_SHININESS:
+                targetMaterial_->shininess = normalizedValue * 128.0f;
+                logging::log << "Material Shininess: " << percentage << "% (exponent " << targetMaterial_->shininess << ")" << std::endl;
+                break;
+                
             case ChunkType::MAT_SHIN2PCT:
                 targetMaterial_->shininessPercent = normalizedValue;
-                targetMaterial_->shininess = normalizedValue * 128.0f;
-                logging::log << "Material Shininess: " << percentage << "% (" << targetMaterial_->shininess << ")" << std::endl;
+                logging::log << "Material Specular Strength: " << percentage << "%" << std::endl;
                 break;
                 
             case ChunkType::MAT_TRANSPARENCY:

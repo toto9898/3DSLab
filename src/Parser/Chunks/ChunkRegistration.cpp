@@ -65,6 +65,9 @@ namespace Debugger3DS {
         // Material chunks
         factory.RegisterChunk<MatEntryChunk>(ChunkType::MAT_ENTRY, stream);
         factory.RegisterChunk<MatNameChunk>(ChunkType::MAT_NAME, stream);
+        factory.RegisterChunk<MatAmbientChunk>(ChunkType::MAT_AMBIENT, stream);
+        factory.RegisterChunk<MatDiffuseChunk>(ChunkType::MAT_DIFFUSE, stream);
+        factory.RegisterChunk<MatSpecularChunk>(ChunkType::MAT_SPECULAR, stream);
         factory.RegisterChunk<MatShininessChunk>(ChunkType::MAT_SHININESS, stream);
         factory.RegisterChunk<MatShin2PctChunk>(ChunkType::MAT_SHIN2PCT, stream);
         factory.RegisterChunk<MatTransparencyChunk>(ChunkType::MAT_TRANSPARENCY, stream);
@@ -73,6 +76,8 @@ namespace Debugger3DS {
         factory.RegisterChunk<MatSelfIllumChunk>(ChunkType::MAT_SELF_ILLUM, stream);
         factory.RegisterChunk<MatWireSizeChunk>(ChunkType::MAT_WIRE_SIZE, stream);
         factory.RegisterChunk<MatShadingChunk>(ChunkType::MAT_SHADING, stream);
+        factory.RegisterChunk<MatTexmapChunk>(ChunkType::MAT_TEXMAP, stream);
+        factory.RegisterChunk<MatMapNameChunk>(ChunkType::MAT_MAPNAME, stream);
         
         // Color chunks
         factory.RegisterChunk<ColorFChunk>(ChunkType::COLOR_F, stream);

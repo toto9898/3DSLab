@@ -21,20 +21,35 @@ struct PosColorVertex {
     static bgfx::VertexLayout layout;
 };
 
-// Per-vertex data for mesh rendering (position + normal + ABGR color)
+// Per-vertex data for mesh rendering (position + normal + ABGR color + material)
 struct PosNormalColorVertex {
     float x, y, z;
     float nx, ny, nz;
-    uint32_t abgr;
+    uint32_t abgr;      // diffuse color (RGB) + transparency (A) in Color0
+    uint32_t abgr1;     // ambient color (RGB) + self-illumination (A) in Color1
+    float specR, specG, specB, shininess; // specular color + exponent in TexCoord1
 
     static void Init() {
         layout.begin()
-            .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-            .add(bgfx::Attrib::Normal,   3, bgfx::AttribType::Float)
-            .add(bgfx::Attrib::Color0,   4, bgfx::AttribType::Uint8, true)
+            .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::Normal,    3, bgfx::AttribType::Float)
+            .add(bgfx::Attrib::Color0,    4, bgfx::AttribType::Uint8, true)
+            .add(bgfx::Attrib::Color1,    4, bgfx::AttribType::Uint8, true)
+            .add(bgfx::Attrib::TexCoord1, 4, bgfx::AttribType::Float)
             .end();
     }
     static bgfx::VertexLayout layout;
+};
+
+// Per-face material properties for upload
+struct FaceMaterial {
+    Eigen::Vector3f ambient  = Eigen::Vector3f(0.2f, 0.2f, 0.2f);
+    Eigen::Vector3f diffuse  = Eigen::Vector3f(0.8f, 0.8f, 0.8f);
+    Eigen::Vector3f specular = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
+    float shininess = 0.0f;
+    float transparency = 0.0f;
+    float selfIllumination = 0.0f;
+    float specularStrength = 0.0f;
 };
 
 // Handle returned when a mesh is uploaded to the GPU
@@ -71,6 +86,15 @@ public:
     // V: Nx3 vertices, F: Mx3 faces, abgr: per-face color (M entries)
     int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
                    uint32_t faceColor);
+
+    // Upload a mesh with per-face colors (one ABGR color per face).
+    // At shared vertices, the first referencing face's color wins.
+    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                   const std::vector<uint32_t>& faceColors);
+
+    // Upload a mesh with full per-face material properties.
+    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+                   const std::vector<FaceMaterial>& faceMaterials);
 
     // Change face color for an already-uploaded mesh (re-uploads vertex buffer)
     void SetMeshColor(int meshId, uint32_t abgr);
