@@ -26,9 +26,13 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
             if (node->associatedMesh) {
                 MeshEntry entry;
                 Eigen::Matrix4f nodeTransform = scene.GetNodeGlobalTransform(node);
-                node->associatedMesh->ToEigenMatrices(entry.V, entry.F, nodeTransform);
-                if (node->isReflected)
-                    entry.F.col(1).swap(entry.F.col(2));
+                // The cached inverse has the mesh-matrix reflection factored out (col 0 negated),
+                // so nodeTransform's determinant only reflects node-hierarchy reflections.
+                // XOR with mesh-matrix reflection to get the true winding.
+                bool nodeReflected = nodeTransform.block<3, 3>(0, 0).determinant() < 0.0f;
+                bool meshReflected = node->associatedMesh->meshMatrix.block<3, 3>(0, 0).determinant() < 0.0f;
+                bool reflected = nodeReflected != meshReflected;
+                node->associatedMesh->ToEigenMatrices(entry.V, entry.F, nodeTransform, reflected);
                 entry.node = node;
                 entry.meshName = node->associatedMeshName;
                 entry.sourceMesh = node->associatedMesh;

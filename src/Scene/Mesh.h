@@ -38,15 +38,23 @@ namespace Debugger3DS {
         void ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F) const;
         
         // Convert to Eigen matrices with a transform applied (non-destructive)
-        void ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const Eigen::Matrix4f& transform) const;
+        // If invertWinding is true, uses cached inverted-winding face data.
+        void ToEigenMatrices(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const Eigen::Matrix4f& transform, bool invertWinding = false) const;
         
         // Get bounding box
         std::pair<Eigen::Vector3f, Eigen::Vector3f> GetBoundingBox() const;
         
+        // Get face indices with inverted winding (b and c swapped).
+        // Lazily computed on first call and cached.
+        const std::vector<Face>& GetInvertedWindingFaces() const;
+
         // Smoothing group methods
         void SetSmoothingGroups(const std::vector<uint32_t>& groups) { smoothingGroups = groups; }
         const std::vector<uint32_t>& GetSmoothingGroups() const { return smoothingGroups; }
         size_t GetFaceCount() const { return faces.size(); }
+
+    private:
+        mutable std::vector<Face> invertedWindingFaces_;
     };
     
 } // namespace Debugger3DS
