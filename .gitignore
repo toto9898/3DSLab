@@ -47,6 +47,9 @@ temp/*
 # 3DS files
 *.3ds
 
+# Test files
+*data/
+
 # Image files
 *.png
 *.jpg
