@@ -20,14 +20,12 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Read smoothing group data for each face
+        // Bulk read all smoothing groups in one I/O call
         smoothingGroups_.resize(faceCount);
-        
-        for (size_t i = 0; i < faceCount; ++i) {
-            if (!Read(smoothingGroups_[i])) {
-                logging::log << "Error: Failed to read smoothing group " << i << std::endl;
-                return false;
-            }
+        stream_.read(reinterpret_cast<char*>(smoothingGroups_.data()),
+                     static_cast<std::streamsize>(faceCount) * sizeof(uint32_t));
+        if (!stream_.good() || stream_.tellg() > dataEndPos_) {
+            return false;
         }
         
         // Apply smoothing groups to the current mesh

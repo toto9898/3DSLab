@@ -265,18 +265,31 @@ int MeshSelector::FindMeshUnderCursor(double mouseX, double mouseY, uint16_t vie
     for (size_t i = 0; i < meshIds_.size(); ++i) {
         int meshId = meshIds_[i];
         const GpuMesh* mesh = renderer_->GetMesh(meshId);
-        if (!mesh || mesh->V.rows() == 0) continue;
+        if (!mesh || mesh->localVerts.empty()) continue;
 
-        // Test each triangle
-        for (int f = 0; f < mesh->F.rows(); ++f) {
-            Eigen::Vector3d v0 = mesh->V.row(mesh->F(f, 0)).transpose();
-            Eigen::Vector3d v1 = mesh->V.row(mesh->F(f, 1)).transpose();
-            Eigen::Vector3d v2 = mesh->V.row(mesh->F(f, 2)).transpose();
+        // Transform ray into local (model) space
+        Eigen::Matrix4d invModel = mesh->modelMatrix.cast<double>().inverse();
+        Eigen::Vector4d localOrigin4 = invModel * Eigen::Vector4d(rayOrigin.x(), rayOrigin.y(), rayOrigin.z(), 1.0);
+        Eigen::Vector3d localOrigin = localOrigin4.head<3>();
+        Eigen::Vector3d localDir = (invModel.block<3, 3>(0, 0) * rayDir).normalized();
+
+        int nFaces = static_cast<int>(mesh->localIndices.size()) / 3;
+        for (int f = 0; f < nFaces; ++f) {
+            int i0 = mesh->localIndices[3 * f];
+            int i1 = mesh->localIndices[3 * f + 1];
+            int i2 = mesh->localIndices[3 * f + 2];
+            Eigen::Vector3d v0 = mesh->localVerts[i0].cast<double>();
+            Eigen::Vector3d v1 = mesh->localVerts[i1].cast<double>();
+            Eigen::Vector3d v2 = mesh->localVerts[i2].cast<double>();
 
             double t, u, v;
-            if (RayTriangleIntersect(rayOrigin, rayDir, v0, v1, v2, t, u, v)) {
-                if (t > 0 && t < minDepth) {
-                    minDepth = t;
+            if (RayTriangleIntersect(localOrigin, localDir, v0, v1, v2, t, u, v)) {
+                // Transform hit distance to world space for correct depth comparison
+                Eigen::Vector3d localHit = localOrigin + t * localDir;
+                Eigen::Vector4d worldHit4 = mesh->modelMatrix.cast<double>() * Eigen::Vector4d(localHit.x(), localHit.y(), localHit.z(), 1.0);
+                double worldT = (worldHit4.head<3>() - rayOrigin).dot(rayDir);
+                if (worldT > 0 && worldT < minDepth) {
+                    minDepth = worldT;
                     closestMeshId = meshId;
                 }
             }

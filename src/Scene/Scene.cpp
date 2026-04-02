@@ -108,7 +108,7 @@ namespace Debugger3DS {
         for (const auto& mesh : meshes) {
             logging::log << "  Mesh '" << mesh->name << "': " 
                      << mesh->vertices.size() << " vertices, "
-                     << mesh->faces.size() << " faces\n";
+                     << mesh->GetFaceCount() << " faces\n";
         }
         
         if (!objectNodes.empty()) {

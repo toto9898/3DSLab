@@ -132,7 +132,7 @@ void SceneTreePanel::DrawMeshNode(int index, const std::shared_ptr<Mesh>& mesh)
 void SceneTreePanel::DrawMeshDetails(const std::shared_ptr<Mesh>& mesh, const char* uid)
 {
     ImGui::Text("Vertices : %zu", mesh->vertices.size());
-    ImGui::Text("Faces    : %zu", mesh->faces.size());
+    ImGui::Text("Faces    : %zu", mesh->GetFaceCount());
     ImGui::Text("TexCoords: %zu", mesh->texCoords.size());
 
     if (!mesh->vertices.empty()) {
@@ -400,7 +400,7 @@ void SceneTreePanel::DrawObjectNode(const ObjectNodePtr& node,
                 "Mesh: %s  (%zu verts, %zu faces)###nodemesh%u",
                 displayName.c_str(),
                 node->associatedMesh->vertices.size(),
-                node->associatedMesh->faces.size(),
+                node->associatedMesh->GetFaceCount(),
                 node->nodeId);
             if (ImGui::TreeNode(meshLabel)) {
                 char uid[32];

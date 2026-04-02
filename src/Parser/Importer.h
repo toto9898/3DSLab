@@ -34,27 +34,9 @@ namespace Debugger3DS {
         void SetVersion(uint32_t version) { scene_.version = version; }
         void SetMeshVersion(uint32_t version) { scene_.meshVersion = version; }
         void SetMasterScale(float scale) { scene_.masterScale = scale; }
-        void SetAmbientLight(const Eigen::Vector3f& color) { scene_.ambientLight = color; }
         
         // Object management
         void SetCurrentObjectName(const std::string& name) { currentObjectName_ = name; }
-        void SetCurrentObjectVertices(const std::vector<Eigen::Vector3f>& vertices);
-        void SetCurrentObjectFaces(const std::vector<Face>& faces);
-        void SetCurrentObjectTexCoords(const std::vector<Eigen::Vector2f>& texCoords);
-        void AddMaterialGroup(const std::string& materialName, const std::vector<uint16_t>& faceIndices);
-        
-        // Material management
-        void BeginMaterial(const std::string& name);
-        void EndMaterial();
-        void SetCurrentMaterialAmbient(const Eigen::Vector3f& color);
-        void SetCurrentMaterialDiffuse(const Eigen::Vector3f& color);
-        void SetCurrentMaterialSpecular(const Eigen::Vector3f& color);
-        
-        // Light management
-        void AddLight(const std::string& name, const Eigen::Vector3f& position, const Eigen::Vector3f& color);
-        
-        // Camera management
-        void AddCamera(const std::string& name, const Eigen::Vector3f& position, const Eigen::Vector3f& target);
         
         // Keyframe animation management
         void SetKeyframeHeader(uint16_t revision, const std::string& filename, uint32_t animLength);
@@ -63,7 +45,6 @@ namespace Debugger3DS {
         
         // Accessors for current object state
         const std::string& GetCurrentObjectName() const { return currentObjectName_; }
-        const std::string& GetCurrentMaterialName() const { return currentMaterialName_; }
         std::shared_ptr<Mesh> GetCurrentMesh() const { return currentMesh_; }
         std::shared_ptr<Material> GetCurrentMaterial() const { return currentMaterial_; }
         void SetCurrentMesh(std::shared_ptr<Mesh> mesh) { currentMesh_ = mesh; }

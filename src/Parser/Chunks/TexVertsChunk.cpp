@@ -16,14 +16,17 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Read texture coordinates directly into target mesh
-        targetMesh_->texCoords.reserve(count);
-        for (uint16_t i = 0; i < count; ++i) {
-            float u, v;
-            if (!Read(u) || !Read(v)) {
-                return false;
-            }
-            targetMesh_->texCoords.emplace_back(u, 1.0f - v);
+        // Bulk read all texture coordinates in one I/O call
+        targetMesh_->texCoords.resize(count);
+        stream_.read(reinterpret_cast<char*>(targetMesh_->texCoords.data()),
+                     static_cast<std::streamsize>(count) * sizeof(Eigen::Vector2f));
+        if (!stream_.good() || stream_.tellg() > dataEndPos_) {
+            return false;
+        }
+        
+        // Flip V coordinate (3DS uses bottom-left origin)
+        for (auto& tc : targetMesh_->texCoords) {
+            tc.y() = 1.0f - tc.y();
         }
         
         logging::log << "Texture Vertices: " << count << " texture coordinates" << std::endl;

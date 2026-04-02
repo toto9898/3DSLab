@@ -6,16 +6,12 @@ namespace Debugger3DS {
 
     // TrackHeader implementation
     bool TrackHeader::Read(std::istream& stream) {
+        // Read flags (2 bytes) separately due to alignment padding before uint32_t fields
         stream.read(reinterpret_cast<char*>(&flags), sizeof(flags));
         if (!stream.good()) return false;
 
-        stream.read(reinterpret_cast<char*>(&unknown1), sizeof(unknown1));
-        if (!stream.good()) return false;
-
-        stream.read(reinterpret_cast<char*>(&unknown2), sizeof(unknown2));
-        if (!stream.good()) return false;
-
-        stream.read(reinterpret_cast<char*>(&keyCount), sizeof(keyCount));
+        // Bulk read the three contiguous uint32_t fields (12 bytes) in one call
+        stream.read(reinterpret_cast<char*>(&unknown1), 3 * sizeof(uint32_t));
         if (!stream.good()) return false;
         
         return true;

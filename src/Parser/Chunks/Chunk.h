@@ -73,7 +73,6 @@ namespace Debugger3DS {
     protected:
         ChunkHeader header_;
         uint16_t parentId = 0;
-        std::vector<std::shared_ptr<Chunk>> children_;
 
         std::istream& stream_;
         std::streampos dataEndPos_ = 0;

@@ -38,12 +38,10 @@ namespace Debugger3DS {
 
     // Read child chunks from stream
     bool Chunk::ReadChildren(Importer& importer) {
-        size_t bytesRead = 0;
-
         while (stream_.good() && stream_.tellg() < dataEndPos_) {
             std::streampos beforeRead = stream_.tellg();
             
-            std::shared_ptr<Chunk> childChunk = CreateChunk(stream_, importer);
+            auto childChunk = CreateChunk(stream_, importer);
             if (!childChunk) {
                 logging::log << "Failed to create child chunk in " << GetTypeName()
                              << " at stream position " << beforeRead << std::endl;
@@ -59,12 +57,6 @@ namespace Debugger3DS {
                              << " at stream position " << beforeRead << std::endl;
                 return false;
             }
-
-            std::streampos afterRead = stream_.tellg();
-            size_t chunkSize = static_cast<size_t>(afterRead - beforeRead);
-
-            children_.push_back(std::move(childChunk));
-            bytesRead += chunkSize;
         }
 
         if (stream_.tellg() != dataEndPos_) {
@@ -92,6 +84,7 @@ namespace Debugger3DS {
     bool Chunk::Read(std::string &value)
     {
         value.clear();
+        value.reserve(32);
         char c;
         while (stream_.read(&c, 1) && c != '\0') {
             value += c;

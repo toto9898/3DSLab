@@ -89,6 +89,7 @@ void Renderer::Shutdown() {
     if (bgfx::isValid(u_eyePos_)) bgfx::destroy(u_eyePos_);
     if (bgfx::isValid(u_lightIntensity_)) bgfx::destroy(u_lightIntensity_);
     if (bgfx::isValid(u_doubleSided_)) bgfx::destroy(u_doubleSided_);
+    if (bgfx::isValid(u_normalMatrix_)) bgfx::destroy(u_normalMatrix_);
     if (bgfx::isValid(s_texColor_)) bgfx::destroy(s_texColor_);
     if (bgfx::isValid(u_hasTexture_)) bgfx::destroy(u_hasTexture_);
     meshProgram_ = BGFX_INVALID_HANDLE;
@@ -97,6 +98,7 @@ void Renderer::Shutdown() {
     u_eyePos_    = BGFX_INVALID_HANDLE;
     u_lightIntensity_ = BGFX_INVALID_HANDLE;
     u_doubleSided_ = BGFX_INVALID_HANDLE;
+    u_normalMatrix_ = BGFX_INVALID_HANDLE;
     s_texColor_ = BGFX_INVALID_HANDLE;
     u_hasTexture_ = BGFX_INVALID_HANDLE;
 
@@ -126,6 +128,7 @@ bool Renderer::LoadShaders() {
     u_eyePos_   = bgfx::createUniform("u_eyePos",   bgfx::UniformType::Vec4);
     u_lightIntensity_ = bgfx::createUniform("u_lightIntensity", bgfx::UniformType::Vec4);
     u_doubleSided_ = bgfx::createUniform("u_doubleSided", bgfx::UniformType::Vec4);
+    u_normalMatrix_ = bgfx::createUniform("u_normalMatrix", bgfx::UniformType::Mat4);
     s_texColor_ = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
     u_hasTexture_ = bgfx::createUniform("u_hasTexture", bgfx::UniformType::Vec4);
 
@@ -141,70 +144,55 @@ void Renderer::EndFrame() {
     bgfx::frame();
 }
 
-int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                          uint32_t faceColor) {
-    std::vector<FaceMaterial> mats(static_cast<size_t>(F.rows()));
-    // Unpack ABGR to float RGB for diffuse
+int Renderer::UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                          const uint16_t* indices, int nIndices,
+                          uint32_t faceColor,
+                          const Eigen::Matrix4f& modelMat) {
+    int nFaces = nIndices / 3;
+    std::vector<FaceMaterial> mats(static_cast<size_t>(nFaces));
     float r = (faceColor & 0xFF) / 255.0f;
     float g = ((faceColor >> 8) & 0xFF) / 255.0f;
     float b = ((faceColor >> 16) & 0xFF) / 255.0f;
     for (auto& m : mats) m.diffuse = Eigen::Vector3f(r, g, b);
-    return UploadMesh(V, F, mats);
+    return UploadMesh(verts, indices, nIndices, mats, {}, BGFX_INVALID_HANDLE, modelMat);
 }
 
-int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                          const std::vector<uint32_t>& faceColors) {
-    std::vector<FaceMaterial> mats(static_cast<size_t>(F.rows()));
-    for (size_t f = 0; f < mats.size(); ++f) {
-        uint32_t c = (f < faceColors.size()) ? faceColors[f] : 0xFFCCCCCCu;
-        mats[f].diffuse = Eigen::Vector3f(
-            (c & 0xFF) / 255.0f,
-            ((c >> 8) & 0xFF) / 255.0f,
-            ((c >> 16) & 0xFF) / 255.0f);
-    }
-    return UploadMesh(V, F, mats);
+int Renderer::UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                          const uint16_t* indices, int nIndices,
+                          const std::vector<FaceMaterial>& faceMaterials,
+                          const Eigen::Matrix4f& modelMat) {
+    return UploadMesh(verts, indices, nIndices, faceMaterials, {}, BGFX_INVALID_HANDLE, modelMat);
 }
 
-int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                          const std::vector<FaceMaterial>& faceMaterials) {
-    return UploadMesh(V, F, faceMaterials, {}, BGFX_INVALID_HANDLE);
-}
-
-int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+int Renderer::UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                          const uint16_t* indices, int nIndices,
                           const std::vector<FaceMaterial>& faceMaterials,
                           const std::vector<Eigen::Vector2f>& texCoords,
-                          bgfx::TextureHandle tex) {
-    int nVerts = static_cast<int>(V.rows());
-    int nFaces = static_cast<int>(F.rows());
+                          bgfx::TextureHandle tex,
+                          const Eigen::Matrix4f& modelMat) {
+    int nVerts = static_cast<int>(verts.size());
+    int nFaces = nIndices / 3;
 
-    // Accumulate area-weighted face normals per vertex
+    // Accumulate area-weighted face normals per vertex (local space)
     Eigen::MatrixXf accum = Eigen::MatrixXf::Zero(nVerts, 3);
-    std::vector<uint32_t> indices(static_cast<size_t>(nFaces) * 3);
 
     for (int f = 0; f < nFaces; ++f) {
-        int i0 = F(f, 0), i1 = F(f, 1), i2 = F(f, 2);
-        Eigen::Vector3f v0(static_cast<float>(V(i0, 0)), static_cast<float>(V(i0, 1)), static_cast<float>(V(i0, 2)));
-        Eigen::Vector3f v1(static_cast<float>(V(i1, 0)), static_cast<float>(V(i1, 1)), static_cast<float>(V(i1, 2)));
-        Eigen::Vector3f v2(static_cast<float>(V(i2, 0)), static_cast<float>(V(i2, 1)), static_cast<float>(V(i2, 2)));
+        int i0 = indices[3 * f], i1 = indices[3 * f + 1], i2 = indices[3 * f + 2];
+        const Eigen::Vector3f& v0 = verts[i0];
+        const Eigen::Vector3f& v1 = verts[i1];
+        const Eigen::Vector3f& v2 = verts[i2];
 
         Eigen::Vector3f faceNormal = (v1 - v0).cross(v2 - v0);
-        // area-weighted accumulation (faceNormal magnitude proportional to area)
-        accum(i0, 0) += faceNormal.x(); accum(i0, 1) += faceNormal.y(); accum(i0, 2) += faceNormal.z();
-        accum(i1, 0) += faceNormal.x(); accum(i1, 1) += faceNormal.y(); accum(i1, 2) += faceNormal.z();
-        accum(i2, 0) += faceNormal.x(); accum(i2, 1) += faceNormal.y(); accum(i2, 2) += faceNormal.z();
-
-        indices[3 * f + 0] = static_cast<uint32_t>(i0);
-        indices[3 * f + 1] = static_cast<uint32_t>(i1);
-        indices[3 * f + 2] = static_cast<uint32_t>(i2);
+        accum.row(i0) += faceNormal.transpose();
+        accum.row(i1) += faceNormal.transpose();
+        accum.row(i2) += faceNormal.transpose();
     }
 
     // Build shared-vertex buffer with per-vertex smooth normals and per-face material
-    std::vector<PosNormalColorVertex> vertices(static_cast<size_t>(nVerts));
-    // Initialize per-vertex material from face materials (first face referencing a vertex wins)
+    std::vector<PosNormalColorVertex> gpuVerts(static_cast<size_t>(nVerts));
     std::vector<bool> matAssigned(static_cast<size_t>(nVerts), false);
     struct VertMat { uint32_t diffuseAbgr; uint32_t ambientAbgr; float specR, specG, specB, shininess; };
     std::vector<VertMat> vertMats(static_cast<size_t>(nVerts));
-    // Default material
     {
         VertMat def;
         def.diffuseAbgr = PackColor(0.8f, 0.8f, 0.8f, 1.0f);
@@ -218,7 +206,7 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
         uint32_t diffAbgr = PackColor(fm.diffuse.x(), fm.diffuse.y(), fm.diffuse.z(), opacity);
         uint32_t ambAbgr  = PackColor(fm.ambient.x(), fm.ambient.y(), fm.ambient.z(), fm.selfIllumination);
         for (int c = 0; c < 3; ++c) {
-            int vi = F(f, c);
+            int vi = indices[3 * f + c];
             if (!matAssigned[static_cast<size_t>(vi)]) {
                 vertMats[static_cast<size_t>(vi)].diffuseAbgr = diffAbgr;
                 vertMats[static_cast<size_t>(vi)].ambientAbgr = ambAbgr;
@@ -230,16 +218,34 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
             }
         }
     }
+    GpuMesh mesh;
+    mesh.numVertices = static_cast<uint32_t>(nVerts);
+    mesh.numIndices  = static_cast<uint32_t>(nIndices);
+    mesh.modelMatrix = modelMat;
+    mesh.tex = tex;
+    // Store local-space vertices and indices for ray casting
+    mesh.localVerts = verts;
+    mesh.localIndices.assign(indices, indices + nIndices);
+    // Store normalized normals for SetMeshColor (single pass — also writes GPU verts)
+    mesh.N.resize(nVerts, 3);
+
+    // Local-space bbox accumulators for the 8-corner transform below
+    Eigen::Vector3f localMin = Eigen::Vector3f::Constant(std::numeric_limits<float>::infinity());
+    Eigen::Vector3f localMax = Eigen::Vector3f::Constant(-std::numeric_limits<float>::infinity());
+    Eigen::Vector3f localSum = Eigen::Vector3f::Zero();
+
     for (int i = 0; i < nVerts; ++i) {
-        Eigen::Vector3f n(accum(i, 0), accum(i, 1), accum(i, 2));
+        Eigen::Vector3f n = accum.row(i).transpose();
         float len = n.norm();
         if (len > 1e-8f) n /= len;
         else n = Eigen::Vector3f(0, 1, 0);
 
-        auto& v = vertices[static_cast<size_t>(i)];
-        v.x = static_cast<float>(V(i, 0));
-        v.y = static_cast<float>(V(i, 1));
-        v.z = static_cast<float>(V(i, 2));
+        mesh.N.row(i) = n.transpose();
+
+        auto& v = gpuVerts[static_cast<size_t>(i)];
+        v.x = verts[i].x();
+        v.y = verts[i].y();
+        v.z = verts[i].z();
         v.nx = n.x();
         v.ny = n.y();
         v.nz = n.z();
@@ -256,46 +262,52 @@ int Renderer::UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
             v.u = -1e6f;
             v.v = -1e6f;
         }
+
+        // Track local-space bbox and centroid (scalar additions only, no matrix multiply)
+        const auto& p = verts[i];
+        localMin = localMin.cwiseMin(p);
+        localMax = localMax.cwiseMax(p);
+        localSum += p;
     }
 
-    GpuMesh mesh;
-    mesh.numVertices = static_cast<uint32_t>(nVerts);
-    mesh.numIndices  = static_cast<uint32_t>(nFaces * 3);
-    mesh.V = V;
-    mesh.F = F;
-    mesh.tex = tex;
-    // Store normalized normals so SetMeshColor can reuse them directly
-    mesh.N.resize(nVerts, 3);
-    for (int i = 0; i < nVerts; ++i) {
-        Eigen::Vector3f n(accum(i, 0), accum(i, 1), accum(i, 2));
-        float len = n.norm();
-        if (len > 1e-8f) n /= len;
-        else n = Eigen::Vector3f(0, 1, 0);
-        mesh.N.row(i) = n.transpose();
+    // Pre-compute normal matrix (inverse-transpose of upper-left 3x3)
+    {
+        Eigen::Matrix3f nm = modelMat.block<3, 3>(0, 0).inverse().transpose();
+        mesh.normalMat[0]  = nm(0,0); mesh.normalMat[1]  = nm(0,1); mesh.normalMat[2]  = nm(0,2); mesh.normalMat[3]  = 0.0f;
+        mesh.normalMat[4]  = nm(1,0); mesh.normalMat[5]  = nm(1,1); mesh.normalMat[6]  = nm(1,2); mesh.normalMat[7]  = 0.0f;
+        mesh.normalMat[8]  = nm(2,0); mesh.normalMat[9]  = nm(2,1); mesh.normalMat[10] = nm(2,2); mesh.normalMat[11] = 0.0f;
+        mesh.normalMat[12] = 0.0f;    mesh.normalMat[13] = 0.0f;    mesh.normalMat[14] = 0.0f;    mesh.normalMat[15] = 0.0f;
     }
 
-    // Compute centroid and bbox once and store as floats for fast sorting
+    // Compute world-space centroid and bbox via 8-corner transform
     if (nVerts > 0) {
-        Eigen::Vector3d c = V.colwise().mean();
-        mesh.centroid = c.cast<float>();
-        Eigen::Vector3d bmin = Eigen::Vector3d::Constant(std::numeric_limits<double>::infinity());
-        Eigen::Vector3d bmax = Eigen::Vector3d::Constant(-std::numeric_limits<double>::infinity());
-        for (int i = 0; i < nVerts; ++i) {
-            bmin = bmin.cwiseMin(V.row(i).transpose());
-            bmax = bmax.cwiseMax(V.row(i).transpose());
+        Eigen::Vector3f localCentroid = localSum / static_cast<float>(nVerts);
+        Eigen::Vector4f wc = modelMat * Eigen::Vector4f(localCentroid.x(), localCentroid.y(), localCentroid.z(), 1.0f);
+        mesh.centroid = wc.head<3>();
+
+        Eigen::Vector3f bmin = Eigen::Vector3f::Constant(std::numeric_limits<float>::infinity());
+        Eigen::Vector3f bmax = Eigen::Vector3f::Constant(-std::numeric_limits<float>::infinity());
+        for (int c = 0; c < 8; ++c) {
+            Eigen::Vector3f corner(
+                (c & 1) ? localMax.x() : localMin.x(),
+                (c & 2) ? localMax.y() : localMin.y(),
+                (c & 4) ? localMax.z() : localMin.z());
+            Eigen::Vector4f wp = modelMat * Eigen::Vector4f(corner.x(), corner.y(), corner.z(), 1.0f);
+            Eigen::Vector3f p = wp.head<3>();
+            bmin = bmin.cwiseMin(p);
+            bmax = bmax.cwiseMax(p);
         }
-        mesh.bboxMin = bmin.cast<float>();
-        mesh.bboxMax = bmax.cast<float>();
+        mesh.bboxMin = bmin;
+        mesh.bboxMax = bmax;
     }
 
-    // Store original vertex data for later restoration
-    mesh.originalVertices = vertices;
+    mesh.originalVertices = gpuVerts;
 
-    const bgfx::Memory* vbMem = bgfx::copy(vertices.data(), static_cast<uint32_t>(nVerts * sizeof(PosNormalColorVertex)));
+    const bgfx::Memory* vbMem = bgfx::copy(gpuVerts.data(), static_cast<uint32_t>(nVerts * sizeof(PosNormalColorVertex)));
     mesh.vbh = bgfx::createVertexBuffer(vbMem, PosNormalColorVertex::layout);
 
-    const bgfx::Memory* ibMem = bgfx::copy(indices.data(), static_cast<uint32_t>(indices.size() * sizeof(uint32_t)));
-    mesh.ibh = bgfx::createIndexBuffer(ibMem, BGFX_BUFFER_INDEX32);
+    const bgfx::Memory* ibMem = bgfx::copy(indices, static_cast<uint32_t>(nIndices * sizeof(uint16_t)));
+    mesh.ibh = bgfx::createIndexBuffer(ibMem);  // 16-bit index buffer (no BGFX_BUFFER_INDEX32)
 
     int id = static_cast<int>(meshes_.size());
     meshes_.push_back(std::move(mesh));
@@ -316,16 +328,15 @@ void Renderer::RestoreMesh(int meshId) {
 void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
     if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) return;
     auto& mesh = meshes_[meshId];
-    // Rebuild vertex buffer with new color using stored per-vertex normals
-    int nVerts = static_cast<int>(mesh.V.rows());
+    int nVerts = static_cast<int>(mesh.localVerts.size());
     std::vector<PosNormalColorVertex> vertices(static_cast<size_t>(nVerts));
     uint32_t ambientAbgr = PackColor(0.15f, 0.15f, 0.15f, 0.0f);
     for (int i = 0; i < nVerts; ++i) {
         auto& v = vertices[static_cast<size_t>(i)];
-        v.x = static_cast<float>(mesh.V(i, 0));
-        v.y = static_cast<float>(mesh.V(i, 1));
-        v.z = static_cast<float>(mesh.V(i, 2));
-        if (mesh.N.rows() == mesh.V.rows()) {
+        v.x = mesh.localVerts[i].x();
+        v.y = mesh.localVerts[i].y();
+        v.z = mesh.localVerts[i].z();
+        if (mesh.N.rows() == nVerts) {
             v.nx = mesh.N(i, 0);
             v.ny = mesh.N(i, 1);
             v.nz = mesh.N(i, 2);
@@ -359,6 +370,9 @@ void Renderer::DrawMesh(int meshId) {
     const auto& mesh = meshes_[meshId];
     if (!bgfx::isValid(mesh.vbh)) return;
 
+    // Set per-mesh model transform
+    bgfx::setTransform(mesh.modelMatrix.data());
+
     bgfx::setVertexBuffer(0, mesh.vbh);
     if (bgfx::isValid(mesh.ibh))
         bgfx::setIndexBuffer(mesh.ibh);
@@ -382,6 +396,9 @@ void Renderer::DrawMesh(int meshId) {
     bgfx::setUniform(u_eyePos_, eyePos_);
     bgfx::setUniform(u_lightIntensity_, lightIntensity_);
     bgfx::setUniform(u_doubleSided_, doubleSided_);
+
+    // Use pre-computed normal matrix (inverse-transpose of upper-left 3x3)
+    bgfx::setUniform(u_normalMatrix_, mesh.normalMat, 1);
 
     // Texture binding
     float hasTexture[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

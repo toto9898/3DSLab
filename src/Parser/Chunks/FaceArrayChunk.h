@@ -3,7 +3,7 @@
 #include "Chunk.h"
 #include <vector>
 #include <memory>
-#include "Mesh.h"  // For complete Face definition
+#include "Mesh.h"
 
 namespace Debugger3DS {
     

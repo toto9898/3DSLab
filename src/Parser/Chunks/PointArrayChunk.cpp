@@ -16,16 +16,13 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Read vertices directly into target mesh
-        targetMesh_->vertices.reserve(count);
-        for (uint16_t i = 0; i < count; ++i) {
-            Eigen::Vector3f vertex;
-            if (!Read(vertex.x()) || 
-                !Read(vertex.y()) || 
-                !Read(vertex.z())) {
-                return false;
-            }
-            targetMesh_->vertices.push_back(vertex);
+        // Bulk read all vertices in one I/O call
+        // Safe: Eigen::Vector3f is 3 contiguous floats, 3DS is little-endian matching x86
+        targetMesh_->vertices.resize(count);
+        stream_.read(reinterpret_cast<char*>(targetMesh_->vertices.data()),
+                     static_cast<std::streamsize>(count) * sizeof(Eigen::Vector3f));
+        if (!stream_.good() || stream_.tellg() > dataEndPos_) {
+            return false;
         }
         
         logging::log << "Point Array: " << count << " vertices" << std::endl;

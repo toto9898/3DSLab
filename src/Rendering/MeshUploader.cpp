@@ -16,7 +16,10 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
     if (scene.objectNodes.empty() || !hasValidAssociations) {
         for (const auto& mesh : scene.meshes) {
             MeshEntry entry;
-            mesh->ToEigenMatrices(entry.V, entry.F);
+            entry.verts = mesh->vertices.data();
+            entry.numVerts = static_cast<int>(mesh->vertices.size());
+            entry.indices = mesh->faceIndices.data();
+            entry.numIndices = static_cast<int>(mesh->faceIndices.size());
             entry.meshName = mesh->name;
             entry.sourceMesh = mesh;
             meshData.push_back(std::move(entry));
@@ -26,13 +29,17 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
             if (node->associatedMesh) {
                 MeshEntry entry;
                 Eigen::Matrix4f nodeTransform = scene.GetNodeGlobalTransform(node);
-                // The cached inverse has the mesh-matrix reflection factored out (col 0 negated),
-                // so nodeTransform's determinant only reflects node-hierarchy reflections.
-                // XOR with mesh-matrix reflection to get the true winding.
                 bool nodeReflected = nodeTransform.block<3, 3>(0, 0).determinant() < 0.0f;
                 bool meshReflected = node->associatedMesh->meshMatrix.block<3, 3>(0, 0).determinant() < 0.0f;
                 bool reflected = nodeReflected != meshReflected;
-                node->associatedMesh->ToEigenMatrices(entry.V, entry.F, nodeTransform, reflected);
+
+                entry.verts = node->associatedMesh->vertices.data();
+                entry.numVerts = static_cast<int>(node->associatedMesh->vertices.size());
+                entry.indices = reflected
+                    ? node->associatedMesh->GetInvertedWindingIndices().data()
+                    : node->associatedMesh->faceIndices.data();
+                entry.numIndices = static_cast<int>(node->associatedMesh->faceIndices.size());
+                entry.modelMatrix = nodeTransform;
                 entry.node = node;
                 entry.meshName = node->associatedMeshName;
                 entry.sourceMesh = node->associatedMesh;
@@ -60,13 +67,13 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
             continue;
 
         // Extract per-face material properties
-        int nFaces = static_cast<int>(entry.F.rows());
+        int nFaces = entry.numIndices / 3;
         std::vector<FaceMaterial> faceMats(static_cast<size_t>(nFaces));
         bool hasMaterialColors = false;
 
-        if (entry.sourceMesh && static_cast<int>(entry.sourceMesh->faces.size()) == nFaces) {
+        if (entry.sourceMesh && static_cast<int>(entry.sourceMesh->faceMaterials.size()) == nFaces) {
             for (int f = 0; f < nFaces; ++f) {
-                const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
                 if (mat) {
                     hasMaterialColors = true;
                     auto& fm = faceMats[static_cast<size_t>(f)];
@@ -90,9 +97,9 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
             // Find first material with a texture map
             bgfx::TextureHandle texHandle = BGFX_INVALID_HANDLE;
             if (entry.sourceMesh) {
-                for (const auto& face : entry.sourceMesh->faces) {
-                    if (face.material && !face.material->textureMap.empty()) {
-                        texHandle = textureLoader.LoadTexture(scene.basePath, face.material->textureMap);
+                for (const auto& mat : entry.sourceMesh->faceMaterials) {
+                    if (mat && !mat->textureMap.empty()) {
+                        texHandle = textureLoader.LoadTexture(scene.basePath, mat->textureMap);
                         break;
                     }
                 }
@@ -105,31 +112,35 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                 std::vector<Eigen::Vector2f> maskedUVs = entry.sourceMesh->texCoords;
                 std::vector<bool> vertexUntextured(maskedUVs.size(), false);
                 for (int f = 0; f < nFaces; ++f) {
-                    const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                    const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
                     bool faceIsUntextured = (mat && mat->textureMap.empty());
                     if (faceIsUntextured) {
                         for (int c = 0; c < 3; ++c) {
-                            int vi = entry.F(f, c);
+                            int vi = entry.indices[3 * f + c];
                             vertexUntextured[static_cast<size_t>(vi)] = true;
                         }
                     }
                 }
                 // A vertex shared between textured and untextured faces keeps its UV
                 for (int f = 0; f < nFaces; ++f) {
-                    const auto& mat = entry.sourceMesh->faces[static_cast<size_t>(f)].material;
+                    const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
                     bool faceIsTextured = (!mat || !mat->textureMap.empty());
                     if (faceIsTextured) {
                         for (int c = 0; c < 3; ++c)
-                            vertexUntextured[static_cast<size_t>(entry.F(f, c))] = false;
+                            vertexUntextured[static_cast<size_t>(entry.indices[3 * f + c])] = false;
                     }
                 }
                 for (size_t i = 0; i < maskedUVs.size(); ++i) {
                     if (vertexUntextured[i])
                         maskedUVs[i] = Eigen::Vector2f(-1e6f, -1e6f);
                 }
-                meshId = renderer.UploadMesh(entry.V, entry.F, faceMats, maskedUVs, texHandle);
+                meshId = renderer.UploadMesh(
+                    entry.sourceMesh->vertices, entry.indices, entry.numIndices,
+                    faceMats, maskedUVs, texHandle, entry.modelMatrix);
             } else {
-                meshId = renderer.UploadMesh(entry.V, entry.F, faceMats);
+                meshId = renderer.UploadMesh(
+                    entry.sourceMesh->vertices, entry.indices, entry.numIndices,
+                    faceMats, entry.modelMatrix);
             }
         } else {
             // Fallback: generate a distinct color per mesh
@@ -142,7 +153,9 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                 b = static_cast<float>(uploadedCount * 0.5 - std::floor(uploadedCount * 0.5));
             }
             color = Renderer::PackColor(r, g, b);
-            meshId = renderer.UploadMesh(entry.V, entry.F, color);
+            meshId = renderer.UploadMesh(
+                entry.sourceMesh->vertices, entry.indices, entry.numIndices,
+                color, entry.modelMatrix);
         }
 
         if (entry.node) {

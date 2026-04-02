@@ -17,17 +17,25 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Read faces directly into target mesh
-        targetMesh_->faces.reserve(count);
+        // Bulk read interleaved face data: [a, b, c, flags] x count
+        std::vector<uint16_t> raw(static_cast<size_t>(count) * 4);
+        stream_.read(reinterpret_cast<char*>(raw.data()),
+                     static_cast<std::streamsize>(raw.size()) * sizeof(uint16_t));
+        if (!stream_.good() || stream_.tellg() > dataEndPos_) {
+            return false;
+        }
+        
+        // Deinterleave into separate arrays
+        targetMesh_->faceIndices.resize(static_cast<size_t>(count) * 3);
+        targetMesh_->faceFlags.resize(count);
+        targetMesh_->faceMaterials.resize(count);  // default nullptr
         for (uint16_t i = 0; i < count; ++i) {
-            Face face;
-            if (!Read(face.a) ||
-                !Read(face.b) ||
-                !Read(face.c) ||
-                !Read(face.flags)) {
-                return false;
-            }
-            targetMesh_->faces.push_back(face);
+            size_t src = static_cast<size_t>(i) * 4;
+            size_t dst = static_cast<size_t>(i) * 3;
+            targetMesh_->faceIndices[dst]     = raw[src];
+            targetMesh_->faceIndices[dst + 1] = raw[src + 1];
+            targetMesh_->faceIndices[dst + 2] = raw[src + 2];
+            targetMesh_->faceFlags[i]         = raw[src + 3];
         }
         
         logging::log << "Face Array: " << count << " faces" << std::endl;

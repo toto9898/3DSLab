@@ -132,12 +132,11 @@ void CameraController::ZoomToNodes(const std::vector<uint16_t>& nodeIds,
         auto it = nodeToDataId.find(nid);
         if (it == nodeToDataId.end()) continue;
         const GpuMesh* mesh = renderer.GetMesh(it->second);
-        if (!mesh || mesh->V.rows() == 0) continue;
+        if (!mesh || mesh->localVerts.empty()) continue;
         found = true;
-        for (int r = 0; r < mesh->V.rows(); ++r) {
-            bmin = bmin.cwiseMin(mesh->V.row(r).transpose());
-            bmax = bmax.cwiseMax(mesh->V.row(r).transpose());
-        }
+        // Use precomputed world-space bbox
+        bmin = bmin.cwiseMin(mesh->bboxMin.cast<double>());
+        bmax = bmax.cwiseMax(mesh->bboxMax.cast<double>());
     }
     if (!found) return;
 

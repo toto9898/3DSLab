@@ -62,14 +62,18 @@ struct GpuMesh {
     uint32_t numVertices = 0;
     uint32_t numIndices  = 0;
     bool transparent = false;
-    // We also store V/F for ray casting
-    Eigen::MatrixXd V;
-    Eigen::MatrixXi F;
-    // Per-vertex smooth normals (rows == V.rows(), 3 cols)
+    // Per-mesh model matrix (set via bgfx::setTransform at draw time)
+    Eigen::Matrix4f modelMatrix = Eigen::Matrix4f::Identity();
+    // Pre-computed normal matrix (inverse-transpose of upper-left 3x3, packed as mat4)
+    float normalMat[16] = {};
+    // Local-space vertices and flat face indices for ray casting
+    std::vector<Eigen::Vector3f> localVerts;
+    std::vector<uint16_t>        localIndices;   // flat triplets
+    // Per-vertex smooth normals (local space, rows == localVerts.size(), 3 cols)
     Eigen::MatrixXf N;
     // Original vertex data for restoring after selection highlight
     std::vector<PosNormalColorVertex> originalVertices;
-    // Cached centroid and bbox (computed at upload time to avoid per-frame work)
+    // Cached centroid and bbox in world space (computed at upload time)
     Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
     Eigen::Vector3f bboxMin  = Eigen::Vector3f::Zero();
     Eigen::Vector3f bboxMax  = Eigen::Vector3f::Zero();
@@ -86,26 +90,28 @@ public:
     void BeginFrame(uint16_t width, uint16_t height);
     void EndFrame();
 
-    // Upload a mesh to the GPU. The mesh vertices are face-expanded so each
-    // triangle vertex carries the face color via abgr.
-    // V: Nx3 vertices, F: Mx3 faces, abgr: per-face color (M entries)
-    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                   uint32_t faceColor);
-
-    // Upload a mesh with per-face colors (one ABGR color per face).
-    // At shared vertices, the first referencing face's color wins.
-    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                   const std::vector<uint32_t>& faceColors);
-
-    // Upload a mesh with full per-face material properties.
-    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
-                   const std::vector<FaceMaterial>& faceMaterials);
-
-    // Upload a mesh with full per-face material properties, UV coordinates, and a texture.
-    int UploadMesh(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
+    // Upload a mesh to the GPU from flat arrays (zero-copy path).
+    // verts: local-space positions, indices: flat uint16 triplets,
+    // faceMaterials: one per face, texCoords: per-vertex UVs (optional),
+    // tex: texture handle, modelMat: model-to-world transform.
+    int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                   const uint16_t* indices, int nIndices,
                    const std::vector<FaceMaterial>& faceMaterials,
                    const std::vector<Eigen::Vector2f>& texCoords,
-                   bgfx::TextureHandle tex);
+                   bgfx::TextureHandle tex,
+                   const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
+
+    // Convenience: upload with a single face color
+    int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                   const uint16_t* indices, int nIndices,
+                   uint32_t faceColor,
+                   const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
+
+    // Convenience: upload with per-face material (no texture)
+    int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
+                   const uint16_t* indices, int nIndices,
+                   const std::vector<FaceMaterial>& faceMaterials,
+                   const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
 
     // Change face color for an already-uploaded mesh (re-uploads vertex buffer)
     void SetMeshColor(int meshId, uint32_t abgr);
@@ -168,6 +174,7 @@ private:
     bgfx::UniformHandle u_eyePos_    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_lightIntensity_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_doubleSided_ = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle u_normalMatrix_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle s_texColor_ = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle u_hasTexture_ = BGFX_INVALID_HANDLE;
     float lightDir_[4] = { 0.3f, 1.0f, 0.5f, 0.0f };

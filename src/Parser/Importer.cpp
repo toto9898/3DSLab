@@ -4,25 +4,61 @@
 #include "Chunks/ChunkRegistration.h"
 #include <iostream>
 #include <fstream>
+#include <streambuf>
 
 namespace Debugger3DS {
     
+    // In-memory stream buffer — wraps a contiguous char buffer as a std::istream source.
+    // Eliminates per-read disk I/O by loading the entire file into RAM first.
+    class MemoryStreamBuf : public std::streambuf {
+    public:
+        MemoryStreamBuf(char* data, size_t size) {
+            setg(data, data, data + size);
+        }
+    protected:
+        pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode) override {
+            char* ptr = (dir == std::ios_base::beg) ? eback() + off :
+                        (dir == std::ios_base::cur) ? gptr() + off :
+                                                      egptr() + off;
+            if (ptr < eback() || ptr > egptr()) return pos_type(off_type(-1));
+            setg(eback(), ptr, egptr());
+            return ptr - eback();
+        }
+        pos_type seekpos(pos_type pos, std::ios_base::openmode mode) override {
+            return seekoff(off_type(pos), std::ios_base::beg, mode);
+        }
+    };
+
     bool Importer::Import3DS(const std::string& filename) {
         
-        // Open the file
-        std::ifstream file(filename, std::ios::binary);
+        // Open file and read entire contents into memory
+        std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
             SetError("Could not open file: " + filename);
             return false;
         }
         
+        std::streamsize fileSize = file.tellg();
+        file.seekg(0, std::ios::beg);
+        
+        std::vector<char> fileBuffer(static_cast<size_t>(fileSize));
+        if (!file.read(fileBuffer.data(), fileSize)) {
+            SetError("Failed to read file into memory: " + filename);
+            return false;
+        }
+        file.close();
+        
+        // Wrap the in-memory buffer as a std::istream
+        MemoryStreamBuf membuf(fileBuffer.data(), fileBuffer.size());
+        std::istream memstream(&membuf);
+        
         // Register all chunk types
-        RegisterAllChunks(chunkFactory_, file);
+        RegisterAllChunks(chunkFactory_, memstream);
 
-        logging::log << "Loading 3DS file: " << filename << std::endl;
+        logging::log << "Loading 3DS file: " << filename << " (" << fileSize << " bytes)" << std::endl;
         
         // Read the main chunk using the new Chunk method
-        std::shared_ptr<Chunk> mainChunk = Chunk::CreateChunk(file, *this);
+        std::shared_ptr<Chunk> mainChunk = Chunk::CreateChunk(memstream, *this);
         if (!mainChunk) {
             SetError("Failed to create main chunk");
         }
@@ -43,78 +79,6 @@ namespace Debugger3DS {
         scene_.PrintInfo();
         
         return !hasError_;
-    }
-    
-    void Importer::SetCurrentObjectVertices(const std::vector<Eigen::Vector3f>& vertices) {
-        if (currentMesh_) {
-            currentMesh_->vertices = vertices;
-        }
-    }
-    
-    void Importer::SetCurrentObjectFaces(const std::vector<Face>& faces) {
-        if (currentMesh_) {
-            currentMesh_->faces.clear();
-            currentMesh_->faces.reserve(faces.size());
-            
-            for (const auto& face : faces) {
-                currentMesh_->faces.emplace_back(face.a, face.b, face.c, face.flags);
-            }
-        }
-    }
-    
-    void Importer::SetCurrentObjectTexCoords(const std::vector<Eigen::Vector2f>& texCoords) {
-        if (currentMesh_) {
-            currentMesh_->texCoords = texCoords;
-        }
-    }
-    
-    void Importer::AddMaterialGroup(const std::string& materialName, const std::vector<uint16_t>& faceIndices) {
-        if (currentMesh_ && currentMaterial_) {
-            // Use current material instead of searching by name
-            currentMesh_->materialGroups[currentMaterial_] = faceIndices;
-        }
-    }
-    
-    void Importer::BeginMaterial(const std::string& name) {
-        currentMaterialName_ = name;
-        scene_.materials.emplace_back(std::make_shared<Material>(name));
-        currentMaterial_ = scene_.materials.back();
-        logging::log << "Processing material: " << name << std::endl;
-    }
-    
-    void Importer::EndMaterial() {
-        currentMaterial_ = nullptr;
-        currentMaterialName_.clear();
-    }
-    
-    void Importer::SetCurrentMaterialAmbient(const Eigen::Vector3f& color) {
-        if (currentMaterial_) {
-            currentMaterial_->ambient = color;
-        }
-    }
-    
-    void Importer::SetCurrentMaterialDiffuse(const Eigen::Vector3f& color) {
-        if (currentMaterial_) {
-            currentMaterial_->diffuse = color;
-        }
-    }
-    
-    void Importer::SetCurrentMaterialSpecular(const Eigen::Vector3f& color) {
-        if (currentMaterial_) {
-            currentMaterial_->specular = color;
-        }
-    }
-    
-    void Importer::AddLight(const std::string& name, const Eigen::Vector3f& position, const Eigen::Vector3f& color) {
-        scene_.lights.emplace_back(std::make_shared<Light>(name));
-        scene_.lights.back()->position = position;
-        scene_.lights.back()->color = color;
-    }
-    
-    void Importer::AddCamera(const std::string& name, const Eigen::Vector3f& position, const Eigen::Vector3f& target) {
-        scene_.cameras.emplace_back(std::make_shared<Camera>(name));
-        scene_.cameras.back()->position = position;
-        scene_.cameras.back()->target = target;
     }
     
     void Importer::SetKeyframeHeader(uint16_t revision, const std::string& filename, uint32_t animLength) {
