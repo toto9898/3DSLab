@@ -25,6 +25,7 @@ public:
         ObjectNodePtr node;
         std::string meshName;
         std::shared_ptr<Mesh> sourceMesh;  // original parsed mesh (for materials)
+        bool invertedWinding = false;
     };
 
     // Prepare mesh data from scene (with transforms applied non-destructively)

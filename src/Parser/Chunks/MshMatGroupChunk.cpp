@@ -44,15 +44,13 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Assign material to individual faces
+        // Assign material to individual faces via palette index
+        uint8_t matIndex = targetMesh_->GetOrAddMaterialIndex(targetMaterial_);
         for (uint16_t faceIndex : faceIndices) {
-            if (faceIndex < targetMesh_->faceMaterials.size()) {
-                targetMesh_->faceMaterials[faceIndex] = targetMaterial_;
+            if (faceIndex < targetMesh_->faceMaterialIndices.size()) {
+                targetMesh_->faceMaterialIndices[faceIndex] = matIndex;
             }
         }
-        
-        // Store material group in mesh
-        targetMesh_->materialGroups[targetMaterial_] = std::move(faceIndices);
         
         logging::log << "Material Group: " << materialName << " with " << faceCount << " faces" << std::endl;
         return true;

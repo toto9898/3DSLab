@@ -1,5 +1,6 @@
 #include "CameraController.h"
 #include "Renderer.h"
+#include "Mesh.h"
 #include <algorithm>
 #include <cmath>
 
@@ -132,7 +133,7 @@ void CameraController::ZoomToNodes(const std::vector<uint16_t>& nodeIds,
         auto it = nodeToDataId.find(nid);
         if (it == nodeToDataId.end()) continue;
         const GpuMesh* mesh = renderer.GetMesh(it->second);
-        if (!mesh || mesh->localVerts.empty()) continue;
+        if (!mesh || !mesh->sourceMesh || mesh->sourceMesh->vertices.empty()) continue;
         found = true;
         // Use precomputed world-space bbox
         bmin = bmin.cwiseMin(mesh->bboxMin.cast<double>());

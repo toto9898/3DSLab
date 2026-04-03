@@ -28,8 +28,7 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Apply smoothing groups to the current mesh
-        currentMesh->SetSmoothingGroups(smoothingGroups_);
+        // Apply smoothing groups to the current mesh (data consumed but not stored)
         
         logging::log << "Smoothing Groups: " << faceCount << " face smoothing assignments" << std::endl;
 

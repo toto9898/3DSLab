@@ -1,5 +1,6 @@
 #include "MeshSelector.h"
 #include "Renderer.h"
+#include "Mesh.h"
 #include "CameraController.h"
 #include "Window.h"
 #include <imgui.h>
@@ -265,7 +266,7 @@ int MeshSelector::FindMeshUnderCursor(double mouseX, double mouseY, uint16_t vie
     for (size_t i = 0; i < meshIds_.size(); ++i) {
         int meshId = meshIds_[i];
         const GpuMesh* mesh = renderer_->GetMesh(meshId);
-        if (!mesh || mesh->localVerts.empty()) continue;
+        if (!mesh || !mesh->sourceMesh || mesh->sourceMesh->vertices.empty()) continue;
 
         // Transform ray into local (model) space
         Eigen::Matrix4d invModel = mesh->modelMatrix.cast<double>().inverse();
@@ -273,14 +274,18 @@ int MeshSelector::FindMeshUnderCursor(double mouseX, double mouseY, uint16_t vie
         Eigen::Vector3d localOrigin = localOrigin4.head<3>();
         Eigen::Vector3d localDir = (invModel.block<3, 3>(0, 0) * rayDir).normalized();
 
-        int nFaces = static_cast<int>(mesh->localIndices.size()) / 3;
+        const auto& verts = mesh->sourceMesh->vertices;
+        const auto& indices = mesh->invertedWinding
+            ? mesh->sourceMesh->GetInvertedWindingIndices()
+            : mesh->sourceMesh->faceIndices;
+        int nFaces = static_cast<int>(indices.size()) / 3;
         for (int f = 0; f < nFaces; ++f) {
-            int i0 = mesh->localIndices[3 * f];
-            int i1 = mesh->localIndices[3 * f + 1];
-            int i2 = mesh->localIndices[3 * f + 2];
-            Eigen::Vector3d v0 = mesh->localVerts[i0].cast<double>();
-            Eigen::Vector3d v1 = mesh->localVerts[i1].cast<double>();
-            Eigen::Vector3d v2 = mesh->localVerts[i2].cast<double>();
+            int i0 = indices[3 * f];
+            int i1 = indices[3 * f + 1];
+            int i2 = indices[3 * f + 2];
+            Eigen::Vector3d v0 = verts[i0].cast<double>();
+            Eigen::Vector3d v1 = verts[i1].cast<double>();
+            Eigen::Vector3d v2 = verts[i2].cast<double>();
 
             double t, u, v;
             if (RayTriangleIntersect(localOrigin, localDir, v0, v1, v2, t, u, v)) {

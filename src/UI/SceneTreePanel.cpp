@@ -146,14 +146,14 @@ void SceneTreePanel::DrawMeshDetails(const std::shared_ptr<Mesh>& mesh, const ch
         }
     }
 
-    if (!mesh->materialGroups.empty()) {
+    if (!mesh->materialPalette.empty()) {
         char matLabel[64];
         snprintf(matLabel, sizeof(matLabel), "Materials (%zu)###mats_%s",
-                 mesh->materialGroups.size(), uid);
+                 mesh->materialPalette.size(), uid);
         if (ImGui::TreeNode(matLabel)) {
-            for (const auto& [mat, faceIndices] : mesh->materialGroups) {
+            for (const auto& mat : mesh->materialPalette) {
                 if (mat)
-                    ImGui::BulletText("%-24s  (%zu faces)", mat->name.c_str(), faceIndices.size());
+                    ImGui::BulletText("%s", mat->name.c_str());
             }
             ImGui::TreePop();
         }

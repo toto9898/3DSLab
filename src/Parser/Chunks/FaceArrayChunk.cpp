@@ -27,15 +27,13 @@ namespace Debugger3DS {
         
         // Deinterleave into separate arrays
         targetMesh_->faceIndices.resize(static_cast<size_t>(count) * 3);
-        targetMesh_->faceFlags.resize(count);
-        targetMesh_->faceMaterials.resize(count);  // default nullptr
+        targetMesh_->faceMaterialIndices.resize(count, 0xFF);  // 0xFF = no material
         for (uint16_t i = 0; i < count; ++i) {
             size_t src = static_cast<size_t>(i) * 4;
             size_t dst = static_cast<size_t>(i) * 3;
             targetMesh_->faceIndices[dst]     = raw[src];
             targetMesh_->faceIndices[dst + 1] = raw[src + 1];
             targetMesh_->faceIndices[dst + 2] = raw[src + 2];
-            targetMesh_->faceFlags[i]         = raw[src + 3];
         }
         
         logging::log << "Face Array: " << count << " faces" << std::endl;

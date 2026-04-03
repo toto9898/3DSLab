@@ -4,8 +4,11 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace Debugger3DS {
+
+class Mesh;
 
 // Per-vertex data for line rendering (position + ABGR color, no normal)
 struct PosColorVertex {
@@ -66,11 +69,9 @@ struct GpuMesh {
     Eigen::Matrix4f modelMatrix = Eigen::Matrix4f::Identity();
     // Pre-computed normal matrix (inverse-transpose of upper-left 3x3, packed as mat4)
     float normalMat[16] = {};
-    // Local-space vertices and flat face indices for ray casting
-    std::vector<Eigen::Vector3f> localVerts;
-    std::vector<uint16_t>        localIndices;   // flat triplets
-    // Per-vertex smooth normals (local space, rows == localVerts.size(), 3 cols)
-    Eigen::MatrixXf N;
+    // Source mesh data for ray casting and recoloring (avoids duplicating vertex/index data)
+    std::shared_ptr<Mesh> sourceMesh;
+    bool invertedWinding = false;
     // Original vertex data for restoring after selection highlight
     std::vector<PosNormalColorVertex> originalVertices;
     // Cached centroid and bbox in world space (computed at upload time)
@@ -133,6 +134,9 @@ public:
 
     // Destroy all meshes (GPU resources only, keeps renderer alive)
     void ClearAllMeshes();
+
+    // Set source mesh reference for ray casting (avoids copying vertex/index data)
+    void SetMeshSource(int meshId, std::shared_ptr<Mesh> source, bool inverted);
 
     // Set the view and projection matrices for the current frame
     void SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj);

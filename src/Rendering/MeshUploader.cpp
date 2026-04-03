@@ -43,6 +43,7 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
                 entry.node = node;
                 entry.meshName = node->associatedMeshName;
                 entry.sourceMesh = node->associatedMesh;
+                entry.invertedWinding = reflected;
                 meshData.push_back(std::move(entry));
             }
         }
@@ -71,9 +72,9 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
         std::vector<FaceMaterial> faceMats(static_cast<size_t>(nFaces));
         bool hasMaterialColors = false;
 
-        if (entry.sourceMesh && static_cast<int>(entry.sourceMesh->faceMaterials.size()) == nFaces) {
+        if (entry.sourceMesh && static_cast<int>(entry.sourceMesh->faceMaterialIndices.size()) == nFaces) {
             for (int f = 0; f < nFaces; ++f) {
-                const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
+                const auto& mat = entry.sourceMesh->GetFaceMaterial(static_cast<size_t>(f));
                 if (mat) {
                     hasMaterialColors = true;
                     auto& fm = faceMats[static_cast<size_t>(f)];
@@ -97,7 +98,7 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
             // Find first material with a texture map
             bgfx::TextureHandle texHandle = BGFX_INVALID_HANDLE;
             if (entry.sourceMesh) {
-                for (const auto& mat : entry.sourceMesh->faceMaterials) {
+                for (const auto& mat : entry.sourceMesh->materialPalette) {
                     if (mat && !mat->textureMap.empty()) {
                         texHandle = textureLoader.LoadTexture(scene.basePath, mat->textureMap);
                         break;
@@ -112,7 +113,7 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                 std::vector<Eigen::Vector2f> maskedUVs = entry.sourceMesh->texCoords;
                 std::vector<bool> vertexUntextured(maskedUVs.size(), false);
                 for (int f = 0; f < nFaces; ++f) {
-                    const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
+                    const auto& mat = entry.sourceMesh->GetFaceMaterial(static_cast<size_t>(f));
                     bool faceIsUntextured = (mat && mat->textureMap.empty());
                     if (faceIsUntextured) {
                         for (int c = 0; c < 3; ++c) {
@@ -123,7 +124,7 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                 }
                 // A vertex shared between textured and untextured faces keeps its UV
                 for (int f = 0; f < nFaces; ++f) {
-                    const auto& mat = entry.sourceMesh->faceMaterials[static_cast<size_t>(f)];
+                    const auto& mat = entry.sourceMesh->GetFaceMaterial(static_cast<size_t>(f));
                     bool faceIsTextured = (!mat || !mat->textureMap.empty());
                     if (faceIsTextured) {
                         for (int c = 0; c < 3; ++c)
@@ -157,6 +158,9 @@ void MeshUploader::UploadMeshes(Renderer& renderer,
                 entry.sourceMesh->vertices, entry.indices, entry.numIndices,
                 color, entry.modelMatrix);
         }
+
+        // Set source mesh reference for ray casting (avoids copying vertex/index data)
+        renderer.SetMeshSource(meshId, entry.sourceMesh, entry.invertedWinding);
 
         if (entry.node) {
             auto nodeTransform = scene.GetNodeGlobalTransform(entry.node);

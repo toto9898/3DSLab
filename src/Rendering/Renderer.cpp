@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Mesh.h"
 #include <bgfx/platform.h>
 #include <bgfx/embedded_shader.h>
 #include <bx/math.h>
@@ -223,11 +224,6 @@ int Renderer::UploadMesh(const std::vector<Eigen::Vector3f>& verts,
     mesh.numIndices  = static_cast<uint32_t>(nIndices);
     mesh.modelMatrix = modelMat;
     mesh.tex = tex;
-    // Store local-space vertices and indices for ray casting
-    mesh.localVerts = verts;
-    mesh.localIndices.assign(indices, indices + nIndices);
-    // Store normalized normals for SetMeshColor (single pass — also writes GPU verts)
-    mesh.N.resize(nVerts, 3);
 
     // Local-space bbox accumulators for the 8-corner transform below
     Eigen::Vector3f localMin = Eigen::Vector3f::Constant(std::numeric_limits<float>::infinity());
@@ -239,8 +235,6 @@ int Renderer::UploadMesh(const std::vector<Eigen::Vector3f>& verts,
         float len = n.norm();
         if (len > 1e-8f) n /= len;
         else n = Eigen::Vector3f(0, 1, 0);
-
-        mesh.N.row(i) = n.transpose();
 
         auto& v = gpuVerts[static_cast<size_t>(i)];
         v.x = verts[i].x();
@@ -328,23 +322,19 @@ void Renderer::RestoreMesh(int meshId) {
 void Renderer::SetMeshColor(int meshId, uint32_t abgr) {
     if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) return;
     auto& mesh = meshes_[meshId];
-    int nVerts = static_cast<int>(mesh.localVerts.size());
+    int nVerts = static_cast<int>(mesh.originalVertices.size());
+    if (nVerts == 0) return;
     std::vector<PosNormalColorVertex> vertices(static_cast<size_t>(nVerts));
     uint32_t ambientAbgr = PackColor(0.15f, 0.15f, 0.15f, 0.0f);
     for (int i = 0; i < nVerts; ++i) {
         auto& v = vertices[static_cast<size_t>(i)];
-        v.x = mesh.localVerts[i].x();
-        v.y = mesh.localVerts[i].y();
-        v.z = mesh.localVerts[i].z();
-        if (mesh.N.rows() == nVerts) {
-            v.nx = mesh.N(i, 0);
-            v.ny = mesh.N(i, 1);
-            v.nz = mesh.N(i, 2);
-        } else {
-            v.nx = 0.0f;
-            v.ny = 1.0f;
-            v.nz = 0.0f;
-        }
+        const auto& orig = mesh.originalVertices[static_cast<size_t>(i)];
+        v.x = orig.x;
+        v.y = orig.y;
+        v.z = orig.z;
+        v.nx = orig.nx;
+        v.ny = orig.ny;
+        v.nz = orig.nz;
         v.abgr = abgr;
         v.abgr1 = ambientAbgr;
         v.specR = 0.0f;
@@ -491,6 +481,12 @@ void Renderer::ClearAllMeshes() {
         if (bgfx::isValid(mesh.tex)) bgfx::destroy(mesh.tex);
     }
     meshes_.clear();
+}
+
+void Renderer::SetMeshSource(int meshId, std::shared_ptr<Mesh> source, bool inverted) {
+    if (meshId < 0 || meshId >= static_cast<int>(meshes_.size())) return;
+    meshes_[meshId].sourceMesh = std::move(source);
+    meshes_[meshId].invertedWinding = inverted;
 }
 
 void Renderer::SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj) {

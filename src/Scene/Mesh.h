@@ -2,7 +2,6 @@
 
 #include "NamedObject.h"
 #include <vector>
-#include <map>
 #include <memory>
 #include <algorithm>
 #include <Eigen/Dense>
@@ -20,15 +19,11 @@ namespace Debugger3DS {
         std::vector<uint16_t>        faceIndices;    // flat triplets: [a0,b0,c0, a1,b1,c1, ...]
         std::vector<Eigen::Vector2f> texCoords;
 
-        // Per-face metadata (parallel arrays, indexed by face number = i/3 of faceIndices)
-        std::vector<uint16_t>                   faceFlags;      // edge visibility flags
-        std::vector<std::shared_ptr<Material>>  faceMaterials;  // one per face
+        // Compact per-face material: index into materialPalette (0xFF = no material)
+        std::vector<uint8_t>                    faceMaterialIndices;
+        std::vector<std::shared_ptr<Material>>   materialPalette;
 
-        std::vector<uint32_t> smoothingGroups;
         Eigen::Matrix4f meshMatrix = Eigen::Matrix4f::Identity();
-
-        // Material assignments with shared pointers (face-index lists per material)
-        std::map<std::shared_ptr<Material>, std::vector<uint16_t>> materialGroups;
 
         Mesh() : NamedObject("Unnamed Mesh") {}
         Mesh(const std::string& meshName) : NamedObject(meshName) {}
@@ -40,10 +35,23 @@ namespace Debugger3DS {
         // Lazily computed on first call and cached.
         const std::vector<uint16_t>& GetInvertedWindingIndices() const;
 
-        // Smoothing group methods
-        void SetSmoothingGroups(const std::vector<uint32_t>& groups) { smoothingGroups = groups; }
-        const std::vector<uint32_t>& GetSmoothingGroups() const { return smoothingGroups; }
         size_t GetFaceCount() const { return faceIndices.size() / 3; }
+
+        // Material palette helpers
+        std::shared_ptr<Material> GetFaceMaterial(size_t faceIdx) const {
+            if (faceIdx < faceMaterialIndices.size() && faceMaterialIndices[faceIdx] != 0xFF) {
+                return materialPalette[faceMaterialIndices[faceIdx]];
+            }
+            return nullptr;
+        }
+
+        uint8_t GetOrAddMaterialIndex(const std::shared_ptr<Material>& mat) {
+            for (uint8_t i = 0; i < static_cast<uint8_t>(materialPalette.size()); ++i) {
+                if (materialPalette[i] == mat) return i;
+            }
+            materialPalette.push_back(mat);
+            return static_cast<uint8_t>(materialPalette.size() - 1);
+        }
 
     private:
         mutable std::vector<uint16_t> invertedWindingIndices_;
