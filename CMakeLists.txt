@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.28)
 project(3DSLab)
 
 # Set C++20 standard
@@ -72,6 +72,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
     GIT_TAG        5.0.1
     GIT_SHALLOW    TRUE
+    EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(eigen)
 
@@ -226,3 +227,8 @@ if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
     target_link_options(${PROJECT_NAME} PRIVATE "/ENTRY:mainCRTStartup")
 endif()
+
+# ──────────────────────────────────────────────────────────
+# Install rules
+# ──────────────────────────────────────────────────────────
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
