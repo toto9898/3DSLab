@@ -3,11 +3,17 @@
 #include <iostream>
 #include <sstream>
 
-namespace logging {
+namespace Debugger3DS::Logging {
 
+/// @brief Lightweight stream-style logger.
+///
+/// Writes to the stream pointed to by #output (defaults to @c std::cout).
+/// Set @c enabled = false to suppress all output (e.g. during bulk parsing).
+/// Redirect #output to a custom @c std::ostream to capture output separately
+/// from raw @c std::cout writes.
 class Logger {
 public:
-    // Template function to handle any type that std::cout can handle
+    /// @brief Write any streamable value.
     template<typename T>
     Logger& operator<<(const T& value) {
         if (enabled) {
@@ -16,7 +22,7 @@ public:
         return *this;
     }
 
-    // Handle stream manipulators like std::endl, std::flush, etc.
+    /// @brief Handle stream manipulators such as @c std::endl.
     Logger& operator<<(std::ostream& (*manip)(std::ostream&)) {
         if (enabled) {
             *output << manip;
@@ -24,11 +30,16 @@ public:
         return *this;
     }
 
+    /// @brief When @c false all output is silently discarded.
     static inline bool enabled = true;
+    /// @brief Target output stream. Defaults to @c std::cout.
     static inline std::ostream* output = &std::cout;
 };
 
-// Global instance
+/// @brief Global logger instance.
 inline Logger log;
 
-} // namespace logging
+} // namespace Debugger3DS::Logging
+
+/// @brief Backward-compatible alias so existing `logging::` call sites continue to compile.
+namespace logging = Debugger3DS::Logging;

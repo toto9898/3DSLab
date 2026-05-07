@@ -4,7 +4,10 @@
 #include <iostream>
 #include <sstream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     bool ObjectNodeTagChunk::ReadData(Importer& importer) {
         // Begin a new object node - children will populate it
@@ -300,4 +303,4 @@ namespace Debugger3DS {
         return oss.str();
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

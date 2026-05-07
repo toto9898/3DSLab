@@ -57,3 +57,6 @@ temp/*
 *.bmp
 *.gif
 *.mtl
+
+# Doxygen
+docs/generated

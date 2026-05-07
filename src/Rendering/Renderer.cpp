@@ -31,7 +31,9 @@
 #include "essl/vs_line.sc.bin.h"
 #include "essl/fs_line.sc.bin.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
+
+using namespace Debugger3DS::Scene;
 
 bgfx::VertexLayout PosColorVertex::layout;
 bgfx::VertexLayout PosNormalColorVertex::layout;
@@ -543,4 +545,4 @@ uint32_t Renderer::PackColor(float r, float g, float b, float a) {
     return (aa << 24) | (bb << 16) | (gg << 8) | rr;
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

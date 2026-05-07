@@ -6,33 +6,47 @@
 #include <cstdint>
 #include <memory>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene { class Mesh; }
 
-class Mesh;
+namespace Debugger3DS::Rendering {
 
-// Per-vertex data for line rendering (position + ABGR color, no normal)
+using Debugger3DS::Scene::Mesh;
+
+/// @brief Per-vertex data for line rendering (position + ABGR color, no normal).
 struct PosColorVertex {
-    float x, y, z;
-    uint32_t abgr;
+    float x;    ///< X position.
+    float y;    ///< Y position.
+    float z;    ///< Z position.
+    uint32_t abgr; ///< Packed color in ABGR byte order.
 
+    /// @brief Initialize the bgfx vertex layout for this struct.
     static void Init() {
         layout.begin()
             .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
             .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
             .end();
     }
-    static bgfx::VertexLayout layout;
+    static bgfx::VertexLayout layout; ///< Shared vertex layout descriptor.
 };
 
-// Per-vertex data for mesh rendering (position + normal + ABGR color + material)
+/// @brief Per-vertex data for mesh rendering (position + normal + ABGR color + material).
 struct PosNormalColorVertex {
-    float x, y, z;
-    float nx, ny, nz;
-    uint32_t abgr;      // diffuse color (RGB) + transparency (A) in Color0
-    uint32_t abgr1;     // ambient color (RGB) + self-illumination (A) in Color1
-    float specR, specG, specB, shininess; // specular color + exponent in TexCoord1
-    float u, v;         // texture UV coordinates in TexCoord0
+    float x;  ///< X position.
+    float y;  ///< Y position.
+    float z;  ///< Z position.
+    float nx; ///< X normal component.
+    float ny; ///< Y normal component.
+    float nz; ///< Z normal component.
+    uint32_t abgr;   ///< Diffuse color (RGB) + transparency (A) packed as ABGR in Color0.
+    uint32_t abgr1;  ///< Ambient color (RGB) + self-illumination (A) packed as ABGR in Color1.
+    float specR;     ///< Specular red component (TexCoord1.x).
+    float specG;     ///< Specular green component (TexCoord1.y).
+    float specB;     ///< Specular blue component (TexCoord1.z).
+    float shininess; ///< Specular exponent (TexCoord1.w).
+    float u; ///< Texture U coordinate (TexCoord0.x).
+    float v; ///< Texture V coordinate (TexCoord0.y).
 
+    /// @brief Initialize the bgfx vertex layout for this struct.
     static void Init() {
         layout.begin()
             .add(bgfx::Attrib::Position,  3, bgfx::AttribType::Float)
@@ -43,58 +57,55 @@ struct PosNormalColorVertex {
             .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
             .end();
     }
-    static bgfx::VertexLayout layout;
+    static bgfx::VertexLayout layout; ///< Shared vertex layout descriptor.
 };
 
-// Per-face material properties for upload
+/// @brief Per-face material properties used during mesh upload.
 struct FaceMaterial {
-    Eigen::Vector3f ambient  = Eigen::Vector3f(0.2f, 0.2f, 0.2f);
-    Eigen::Vector3f diffuse  = Eigen::Vector3f(0.8f, 0.8f, 0.8f);
-    Eigen::Vector3f specular = Eigen::Vector3f(0.0f, 0.0f, 0.0f);
-    float shininess = 0.0f;
-    float transparency = 0.0f;
-    float selfIllumination = 0.0f;
-    float specularStrength = 0.0f;
+    Eigen::Vector3f ambient  = Eigen::Vector3f(0.2f, 0.2f, 0.2f); ///< Ambient color (RGB, 0–1).
+    Eigen::Vector3f diffuse  = Eigen::Vector3f(0.8f, 0.8f, 0.8f); ///< Diffuse color (RGB, 0–1).
+    Eigen::Vector3f specular = Eigen::Vector3f(0.0f, 0.0f, 0.0f); ///< Specular color (RGB, 0–1).
+    float shininess = 0.0f;        ///< Specular exponent.
+    float transparency = 0.0f;     ///< Transparency (0 = opaque, 1 = fully transparent).
+    float selfIllumination = 0.0f; ///< Self-illumination factor (0–1).
+    float specularStrength = 0.0f; ///< Specular strength multiplier.
 };
 
-// Handle returned when a mesh is uploaded to the GPU
+/// @brief GPU-resident mesh handle returned by Renderer::UploadMesh().
 struct GpuMesh {
-    bgfx::VertexBufferHandle vbh = BGFX_INVALID_HANDLE;
-    bgfx::IndexBufferHandle  ibh = BGFX_INVALID_HANDLE;
-    bgfx::TextureHandle      tex = BGFX_INVALID_HANDLE;
-    uint32_t numVertices = 0;
-    uint32_t numIndices  = 0;
-    bool transparent = false;
-    // Per-mesh model matrix (set via bgfx::setTransform at draw time)
-    Eigen::Matrix4f modelMatrix = Eigen::Matrix4f::Identity();
-    // Pre-computed normal matrix (inverse-transpose of upper-left 3x3, packed as mat4)
-    float normalMat[16] = {};
-    // Source mesh data for ray casting and recoloring (avoids duplicating vertex/index data)
-    std::shared_ptr<Mesh> sourceMesh;
-    bool invertedWinding = false;
-    // Original vertex data for restoring after selection highlight
-    std::vector<PosNormalColorVertex> originalVertices;
-    // Cached centroid and bbox in world space (computed at upload time)
-    Eigen::Vector3f centroid = Eigen::Vector3f::Zero();
-    Eigen::Vector3f bboxMin  = Eigen::Vector3f::Zero();
-    Eigen::Vector3f bboxMax  = Eigen::Vector3f::Zero();
+    bgfx::VertexBufferHandle vbh = BGFX_INVALID_HANDLE; ///< bgfx vertex buffer handle.
+    bgfx::IndexBufferHandle  ibh = BGFX_INVALID_HANDLE; ///< bgfx index buffer handle.
+    bgfx::TextureHandle      tex = BGFX_INVALID_HANDLE; ///< Texture handle (may be invalid).
+    uint32_t numVertices = 0; ///< Number of vertices in the buffer.
+    uint32_t numIndices  = 0; ///< Number of indices in the buffer.
+    bool transparent = false; ///< @c true if the mesh should be drawn with alpha blending.
+    Eigen::Matrix4f modelMatrix = Eigen::Matrix4f::Identity(); ///< Model-to-world transform.
+    float normalMat[16] = {}; ///< Inverse-transpose of the upper-left 3×3 of modelMatrix, packed as mat4.
+    std::shared_ptr<Mesh> sourceMesh;  ///< Source parsed mesh for ray casting (avoids duplicating data).
+    bool invertedWinding = false;      ///< @c true if face winding was flipped on upload.
+    std::vector<PosNormalColorVertex> originalVertices; ///< Backup of vertex data for restoring after highlight.
+    Eigen::Vector3f centroid = Eigen::Vector3f::Zero(); ///< World-space centroid (computed at upload).
+    Eigen::Vector3f bboxMin  = Eigen::Vector3f::Zero(); ///< World-space AABB minimum corner.
+    Eigen::Vector3f bboxMax  = Eigen::Vector3f::Zero(); ///< World-space AABB maximum corner.
 };
 
+/// @brief bgfx-backed renderer for 3D mesh and line drawing.
 class Renderer {
 public:
     Renderer() = default;
 
-    // Initialize bgfx with the given native window handle and dimensions.
+    /// @brief Initialize bgfx with the given native window handle and dimensions.
+    /// @return @c true on success.
     bool Init(void* nativeWindowHandle, uint16_t width, uint16_t height);
+    /// @brief Shut down bgfx and release all GPU resources.
     void Shutdown();
 
+    /// @brief Begin a new render frame.
     void BeginFrame(uint16_t width, uint16_t height);
+    /// @brief Submit the current frame to the GPU.
     void EndFrame();
 
-    // Upload a mesh to the GPU from flat arrays (zero-copy path).
-    // verts: local-space positions, indices: flat uint16 triplets,
-    // faceMaterials: one per face, texCoords: per-vertex UVs (optional),
-    // tex: texture handle, modelMat: model-to-world transform.
+    /// @brief Upload a textured mesh to the GPU.
     int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
                    const uint16_t* indices, int nIndices,
                    const std::vector<FaceMaterial>& faceMaterials,
@@ -102,72 +113,73 @@ public:
                    bgfx::TextureHandle tex,
                    const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
 
-    // Convenience: upload with a single face color
+    /// @brief Upload a mesh with a single solid face color.
     int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
                    const uint16_t* indices, int nIndices,
                    uint32_t faceColor,
                    const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
 
-    // Convenience: upload with per-face material (no texture)
+    /// @brief Upload a mesh with per-face materials but no texture.
     int UploadMesh(const std::vector<Eigen::Vector3f>& verts,
                    const uint16_t* indices, int nIndices,
                    const std::vector<FaceMaterial>& faceMaterials,
                    const Eigen::Matrix4f& modelMat = Eigen::Matrix4f::Identity());
 
-    // Change face color for an already-uploaded mesh (re-uploads vertex buffer)
+    /// @brief Change the face color for an already-uploaded mesh.
     void SetMeshColor(int meshId, uint32_t abgr);
 
-    // Restore mesh to its original vertex data (after selection highlight)
+    /// @brief Restore a mesh to its original vertex data.
     void RestoreMesh(int meshId);
 
-    // Set whether a mesh should be drawn with alpha blending
+    /// @brief Enable or disable alpha blending for a mesh.
     void SetMeshTransparent(int meshId, bool transparent);
 
-    // Submit a mesh for drawing this frame
+    /// @brief Submit a mesh for drawing this frame.
     void DrawMesh(int meshId);
 
-    // Draw a line segment (for coordinate axes, etc.)
+    /// @brief Draw a polyline from a list of colored vertices.
     void DrawLines(const std::vector<PosColorVertex>& vertices);
 
-    // Destroy a specific mesh
+    /// @brief Destroy a specific uploaded mesh and free its GPU resources.
     void DestroyMesh(int meshId);
 
-    // Destroy all meshes (GPU resources only, keeps renderer alive)
+    /// @brief Destroy all uploaded meshes (keeps the renderer alive).
     void ClearAllMeshes();
 
-    // Set source mesh reference for ray casting (avoids copying vertex/index data)
+    /// @brief Associate a source mesh for ray casting.
     void SetMeshSource(int meshId, std::shared_ptr<Mesh> source, bool inverted);
 
-    // Set the view and projection matrices for the current frame
+    /// @brief Set the view and projection matrices for the current frame.
     void SetViewTransform(const Eigen::Matrix4f& view, const Eigen::Matrix4f& proj);
 
-    // Set light direction, camera position, specular power, and global intensity for Phong shading
+    /// @brief Set Phong shading uniforms.
     void SetLightUniforms(const Eigen::Vector3f& lightDir, const Eigen::Vector3f& eyePos, float specularPower = 32.0f, float lightIntensity = 1.0f);
-    // Enable or disable double-sided normals globally
+    /// @brief Enable or disable double-sided normals globally.
     void SetDoubleSided(bool enabled);
-    // Draw all meshes (opaque first, then transparent)
+    /// @brief Draw all meshes (opaque first, then transparent).
     void DrawAllMeshes(const Eigen::Vector3f& eyePos);
 
-    // Pivot marker (debug): set pivot world position and toggle marker rendering
+    /// @brief Set the debug pivot marker position (world space).
     void SetPivotPoint(const Eigen::Vector3f& pivot);
+    /// @brief Show or hide the pivot marker.
     void SetShowPivotMarker(bool show);
+    /// @brief Set the pivot marker cross-hair size.
     void SetPivotMarkerSize(float size);
 
-    // Access stored mesh data for ray casting
+    /// @brief Access stored mesh data; returns @c nullptr for invalid IDs.
     const GpuMesh* GetMesh(int meshId) const;
-    int GetMeshCount() const { return static_cast<int>(meshes_.size()); }
+    int GetMeshCount() const { return static_cast<int>(meshes_.size()); } ///< Number of uploaded meshes.
 
-    // Pack an RGB float color (0-1 each) into ABGR uint32
+    /// @brief Pack an RGB float color (0–1) into a packed ABGR @c uint32.
     static uint32_t PackColor(float r, float g, float b, float a = 1.0f);
 
-    // Handle window resize (must call bgfx::reset)
+    /// @brief Notify the renderer of a window resize.
     void HandleResize(uint16_t width, uint16_t height);
 
-    // Whether the current backend uses homogeneous depth [-1,1] vs [0,1]
+    /// @brief Returns @c true if the backend uses homogeneous depth ([-1,1]).
     bool IsHomogeneousDepth() const;
 
-    // View ID constants
-    static constexpr bgfx::ViewId kMainView = 0;
+    static constexpr bgfx::ViewId kMainView = 0; ///< bgfx view ID for the main 3D pass.
 
 private:
     bool LoadShaders();
@@ -194,4 +206,4 @@ private:
     float pivotMarkerSize_ = 0.05f;
 };
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

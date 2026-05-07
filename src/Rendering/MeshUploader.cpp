@@ -5,7 +5,9 @@
 #include <any>
 #include <cmath>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
+
+using namespace Debugger3DS::Scene;
 
 std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene& scene) {
     std::vector<MeshEntry> meshData;
@@ -193,4 +195,4 @@ std::vector<PosColorVertex> MeshUploader::MakeCoordinateAxes(double axisLength) 
     };
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

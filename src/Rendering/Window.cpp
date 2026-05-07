@@ -5,7 +5,7 @@
 #include <GLFW/glfw3native.h>
 #endif
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 Window::~Window() {
     Shutdown();
@@ -139,4 +139,4 @@ void Window::DropCallback(GLFWwindow* w, int count, const char** paths) {
         self->onDrop(std::string(paths[0]));
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

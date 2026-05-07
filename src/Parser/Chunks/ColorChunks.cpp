@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include "Material.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     template<typename T>
     bool ColorChunk<T>::ReadData(Importer& importer) {
@@ -65,4 +68,4 @@ namespace Debugger3DS {
     template class ColorChunk<uint8_t>;
     template class ColorChunk<float>;
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

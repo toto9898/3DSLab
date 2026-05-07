@@ -2,7 +2,7 @@
 
 int main(int argc, char *argv[])
 {
-    Debugger3DS::Application app;
+    Debugger3DS::Rendering::Application app;
     app.SetupViewer();
 
     // If a file was passed on the command line, open it

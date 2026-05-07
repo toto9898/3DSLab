@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     bool KfHdrChunk::ReadData(Importer& importer) {
         // Read revision
@@ -76,4 +79,4 @@ namespace Debugger3DS {
         return "Current Time Frame: " + std::to_string(currentFrame_);
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

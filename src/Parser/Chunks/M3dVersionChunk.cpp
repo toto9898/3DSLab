@@ -3,7 +3,10 @@
 #include <iostream>
 #include <sstream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     bool M3dVersionChunk::ReadData(Importer& importer) {
         
@@ -30,4 +33,4 @@ namespace Debugger3DS {
         return "M3D_VERSION";
     }
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

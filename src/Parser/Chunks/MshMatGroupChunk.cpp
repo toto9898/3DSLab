@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     bool MshMatGroupChunk::ReadData(Importer& importer) {
         // Read material name
@@ -56,4 +59,4 @@ namespace Debugger3DS {
         return true;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

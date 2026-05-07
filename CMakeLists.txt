@@ -235,3 +235,19 @@ endif()
 # Install rules
 # ──────────────────────────────────────────────────────────
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION .)
+
+# ──────────────────────────────────────────────────────────
+# Doxygen docs target  (cmake --build build --target docs)
+# ──────────────────────────────────────────────────────────
+find_package(Doxygen OPTIONAL_COMPONENTS dot)
+if(DOXYGEN_FOUND)
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} "${CMAKE_SOURCE_DIR}/docs/Doxyfile"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+    message(STATUS "Doxygen found — build target 'docs' is available")
+else()
+    message(STATUS "Doxygen not found — 'docs' target will not be available")
+endif()

@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     bool MeshVersionChunk::ReadData(Importer& importer) {
         if (!Read(version_)) {
@@ -18,4 +21,4 @@ namespace Debugger3DS {
         return version_;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

@@ -5,35 +5,40 @@
 #include <string>
 #include <cstdint>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene {
 
-    struct Light;
+struct Light;
 
-    // Position track for an animated spotlight target (from L_TARGET_NODE_TAG)
-    struct LightTargetNode {
-        std::string name;      // matches the parent light's name
-        uint16_t nodeId = 0;
-        AnimationTrack<Eigen::Vector3f> positionTrack;
-    };
-    using LightTargetNodePtr = std::shared_ptr<LightTargetNode>;
+/// @brief Animated position track for a spotlight's target point (L_TARGET_NODE_TAG).
+struct LightTargetNode {
+    std::string name;      ///< Matches the parent LightNode's `lightName` field.
+    uint16_t nodeId = 0;   ///< NODE_ID assigned in the KFDATA section.
+    AnimationTrack<Eigen::Vector3f> positionTrack; ///< World-space target position over time.
+};
+/// @brief Shared pointer to LightTargetNode.
+using LightTargetNodePtr = std::shared_ptr<LightTargetNode>;
 
-    // Animated light node from LIGHT_NODE_TAG in the KFDATA section
-    struct LightNode {
-        uint16_t nodeId   = 0;
-        uint16_t parentId = 0xFFFF;  // 0xFFFF = no parent
-        std::string lightName;        // from NODE_HDR — matches Light::name
+/// @brief Animated light node from the LIGHT_NODE_TAG block in the KFDATA section.
+///
+/// After Scene::BuildAnimationNodeAssociations() is called, #associatedLight and
+/// #targetNode are resolved from the scene's light and target-node lists.
+struct LightNode {
+    uint16_t nodeId   = 0;        ///< NODE_ID assigned in the KFDATA section.
+    uint16_t parentId = 0xFFFF;  ///< Parent node ID; 0xFFFF means no parent.
+    std::string lightName;         ///< From NODE_HDR — matches Light::name.
 
-        AnimationTrack<Eigen::Vector3f> positionTrack;
-        AnimationTrack<Eigen::Vector3f> colorTrack;    // animated RGB color
-        AnimationTrack<float>           hotspotTrack;  // animated hotspot cone angle (degrees)
-        AnimationTrack<float>           falloffTrack;  // animated falloff cone angle (degrees)
+    AnimationTrack<Eigen::Vector3f> positionTrack; ///< Animated world-space position.
+    AnimationTrack<Eigen::Vector3f> colorTrack;    ///< Animated RGB light colour.
+    AnimationTrack<float>           hotspotTrack;  ///< Animated hotspot cone half-angle (degrees).
+    AnimationTrack<float>           falloffTrack;  ///< Animated falloff cone half-angle (degrees).
 
-        // Resolved by Scene::BuildAnimationNodeAssociations()
-        std::shared_ptr<Light> associatedLight;
-        LightTargetNodePtr     targetNode;  // matching L_TARGET_NODE_TAG (spotlight only)
+    std::shared_ptr<Light> associatedLight; ///< Resolved by Scene::BuildAnimationNodeAssociations().
+    LightTargetNodePtr     targetNode;       ///< Matching L_TARGET_NODE_TAG (spotlights only).
 
-        bool HasParent() const { return parentId != 0xFFFF; }
-    };
-    using LightNodePtr = std::shared_ptr<LightNode>;
+    /// @return @c true if this node has a parent node.
+    bool HasParent() const { return parentId != 0xFFFF; }
+};
+/// @brief Shared pointer to LightNode.
+using LightNodePtr = std::shared_ptr<LightNode>;
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Scene

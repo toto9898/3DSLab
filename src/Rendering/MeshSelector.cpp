@@ -8,7 +8,7 @@
 #include <cmath>
 #include <limits>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 void MeshSelector::Init(Renderer& renderer, CameraController& camera) {
     renderer_ = &renderer;
@@ -349,4 +349,4 @@ bool MeshSelector::RayTriangleIntersect(const Eigen::Vector3d& origin, const Eig
     return t > EPSILON;
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

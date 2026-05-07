@@ -6,6 +6,8 @@
 
 namespace Debugger3DS::UI {
 
+using namespace Debugger3DS::Scene;
+
 SceneTreePanel::SceneTreePanel(const Scene& scene) : scene_(scene) {}
 
 void SceneTreePanel::SetSelectedNodeId(uint16_t nodeId) {

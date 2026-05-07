@@ -3,11 +3,14 @@
 #include "Mesh.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     bool SmoothGroupChunk::ReadData(Importer& importer) {
         // Get the current mesh being processed
-        std::shared_ptr<Debugger3DS::Mesh> currentMesh = importer.GetCurrentMesh();
+        std::shared_ptr<Mesh> currentMesh = importer.GetCurrentMesh();
         if (!currentMesh) {
             logging::log << "Warning: SMOOTH_GROUP chunk found but no current mesh" << std::endl;
             return false;
@@ -43,4 +46,4 @@ namespace Debugger3DS {
         return "Smoothing Groups: " + std::to_string(smoothingGroups_.size()) + " face assignments";
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

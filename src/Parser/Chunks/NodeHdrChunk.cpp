@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     bool NodeHdrChunk::ReadData(Importer& importer) {
         // Read node header data
@@ -49,4 +52,4 @@ namespace Debugger3DS {
         return parentId_;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

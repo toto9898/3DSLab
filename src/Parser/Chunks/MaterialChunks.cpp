@@ -3,7 +3,10 @@
 #include "Material.h"
 #include "Logger.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     //==============================================================================
     // Material Name
@@ -115,4 +118,4 @@ namespace Debugger3DS {
         return true;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

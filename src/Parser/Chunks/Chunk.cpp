@@ -4,7 +4,10 @@
 #include <iomanip>
 #include <sstream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     // Process method implementation
     bool Chunk::Process(Importer& importer) {
@@ -111,4 +114,4 @@ namespace Debugger3DS {
         return oss.str();
     }
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

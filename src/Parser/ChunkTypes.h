@@ -3,11 +3,9 @@
 #include <cstdint>
 #include <unordered_map>
 
-namespace Debugger3DS {
-    // 3DS file chunk type definitions from the 3DS format specification
-    namespace ChunkType {
+namespace Debugger3DS::Parser::ChunkType {
 
-        // ── Single source of truth for all chunk types ──
+    // ── Single source of truth for all chunk types ──
         // Each entry: X( NAME, ID )
         #define CHUNK_TABLE(X)                                                    \
             /* Main file chunks */                                                \
@@ -226,5 +224,5 @@ namespace Debugger3DS {
         }
 
         inline auto sChunkName = BuildChunkNameMap();
-    }
-}
+
+} // namespace Debugger3DS::Parser::ChunkType

@@ -3,7 +3,7 @@
 #include "Scene.h"
 #include "Logger.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene {
     void Scene::BuildObjectNodeHierarchy()
     {
         // For R1/R2 files (no NODE_ID chunks), assign sequential IDs matching
@@ -81,7 +81,7 @@ namespace Debugger3DS {
         return nullptr;
     }
     
-    const std::shared_ptr<Mesh> Scene::FindMesh(const std::string& name) const {
+    std::shared_ptr<Mesh> Scene::FindMesh(const std::string& name) const {
         for (const auto& mesh : meshes) {
             if (mesh->name == name) {
                 return mesh;
@@ -168,4 +168,4 @@ namespace Debugger3DS {
         logging::log << "============================\n\n";
     }
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Scene

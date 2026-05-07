@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 void CameraController::Init(float fovDeg, float near, float far) {
     fovDeg_ = fovDeg;
@@ -314,4 +314,4 @@ void CameraController::SetOrbitPivot(const Eigen::Vector3f& pivot)
     hasCustomPivot_ = true;
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

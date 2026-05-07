@@ -4,7 +4,7 @@
 #include "Mesh.h"
 #include "Logger.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene {
 
     Eigen::Matrix4f ObjectNode::GetTransformAtFrame(uint32_t frame) const {
         // Get animated values for this frame
@@ -102,6 +102,7 @@ namespace Debugger3DS {
     }
 
     // Template specializations for GetValueAtFrame
+    /// @cond INTERNAL
     template<>
     Eigen::Vector3f AnimationTrack<Eigen::Vector3f>::GetValueAtFrame(uint32_t frame) const {
         if (keys.empty()) {
@@ -193,5 +194,6 @@ namespace Debugger3DS {
     }
 
     // Explicit template instantiation for float tracks
+    /// @endcond
     template class AnimationTrack<float>;
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Scene

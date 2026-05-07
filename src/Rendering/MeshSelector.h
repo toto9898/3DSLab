@@ -9,58 +9,71 @@
 #include <map>
 #include <cstdint>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 class Renderer;
 class CameraController;
 struct InputState;
 
+/// @brief Ray-cast-based mesh picker that tracks selection state and fires callbacks.
+///
+/// Register meshes with AddMesh() or AddMeshWithTransform(), then call
+/// ProcessInput() every frame.  When the selection changes, the registered
+/// callback is invoked with the selected mesh's user-data payload.
 class MeshSelector {
 public:
     MeshSelector() = default;
 
+    /// @brief Bind to a renderer and camera for ray-casting.
     void Init(Renderer& renderer, CameraController& camera);
 
-    // Add a mesh with its renderer id, user data, original color, and optional bounding box
+    /// @brief Register a mesh for picking.
+    /// @param meshId   Renderer-side data ID.
+    /// @param userData Opaque payload returned to the selection callback.
+    /// @param color    RGBA tint colour (used for highlight state).
+    /// @param name     Display name (shown in output log).
+    /// @param bbox     Optional world-space AABB for fast ray rejection.
     void AddMesh(int meshId, std::any userData, uint32_t color, const std::string& name = "", const AABB& bbox = AABB());
 
-    // Add a mesh with bounding box computed from transformation
+    /// @brief Register a mesh whose AABB is derived from a local bounding box + transform.
     void AddMeshWithTransform(int meshId, std::any userData, uint32_t color, const std::string& name,
                                const Eigen::Vector3f& bboxMin, const Eigen::Vector3f& bboxMax,
                                const Eigen::Matrix4f& transform);
 
-    // Process input for this frame (call each frame)
+    /// @brief Sample input and update selection state.  Call once per frame.
     void ProcessInput(const InputState& input, uint16_t viewportW, uint16_t viewportH);
 
-    // Set callback for when selection changes
+    /// @brief Set the callback invoked whenever the selection changes.
+    /// @param callback Receives the @c std::any user-data of the newly selected mesh.
     void SetSelectionCallback(std::function<void(const std::any&)> callback);
 
-    // Get user data for currently selected mesh
+    /// @return User-data of the currently selected mesh (empty @c std::any if none).
     const std::any& GetSelectedUserData() const { return selectedUserData_; }
 
-    // Whether any mesh is currently selected
+    /// @return @c true if any mesh is currently selected.
     bool HasSelection() const;
 
-    // Get mesh name by index
+    /// @return Display name of the mesh at @p index.
     std::string GetMeshName(int index) const;
 
-    // Return center of bounding box covering currently selected meshes.
-    // If no selection, returns a zero vector.
+    /// @brief Compute the centre of the world-space AABB covering all selected meshes.
     Eigen::Vector3f GetSelectionCenter() const;
 
-    // Highlight the selected mesh
+    /// @brief Apply the highlight colour to the selected mesh in the renderer.
     void HighlightSelected();
 
-    // Clear selection
+    /// @brief Deselect all meshes.
     void ClearSelection();
 
-    // Reset all state (meshes, selection, etc.)
+    /// @brief Remove all registered meshes and reset selection state.
     void Reset();
 
-    // Select mesh by renderer id (toggles if already selected)
+    /// @brief Toggle selection of the mesh with the given renderer ID.
     void SelectMesh(int meshId);
 
-    // Select multiple meshes by renderer id
+    /// @brief Select a list of meshes by renderer ID.
+    /// @param meshIds      Renderer mesh IDs to select.
+    /// @param fireCallback @c true to invoke the selection callback after selecting.
     void SelectMeshes(const std::vector<int>& meshIds, bool fireCallback = true);
 
 private:
@@ -102,4 +115,4 @@ private:
                                      double& t, double& u, double& v);
 };
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

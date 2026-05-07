@@ -2,7 +2,10 @@
 #include "Importer.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     bool PointArrayChunk::ReadData(Importer& importer) {
         uint16_t count;
@@ -29,4 +32,4 @@ namespace Debugger3DS {
         return true;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

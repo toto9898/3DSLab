@@ -13,72 +13,92 @@
 #include "AnimationHeaders.h"
 #include "Logger.h"
 
-namespace Debugger3DS {
-    // Forward declarations
-    class Importer;
+namespace Debugger3DS::Parser { class Importer; }
+
+namespace Debugger3DS::Parser::Chunks {
+    // (Importer is in parent namespace Debugger3DS::Parser — accessible as Importer below)
     
-    // Base chunk header structure
+    /// @brief Fixed 6-byte header present at the start of every 3DS chunk.
     struct ChunkHeader {
-        uint16_t id     = 0;  // Chunk type identifier
-        uint32_t length = 0;  // Total chunk length including header
+        uint16_t id     = 0; ///< Chunk type identifier (see ChunkTypes.h).
+        uint32_t length = 0; ///< Total chunk size in bytes, including this 6-byte header.
     };
-    // Type trait for trivially copyable types (C++20 concept alternative)
+
+    /// @cond INTERNAL
     template<typename T>
     constexpr bool is_trivially_copyable_v = std::is_trivially_copyable_v<T>;
-    
-    // Abstract base class for all chunks
+    /// @endcond
+
+    /// @brief Abstract base class for all 3DS file chunks.
+    ///
+    /// Each chunk owns a reference to the shared input stream.  The standard
+    /// read sequence is:
+    ///   1. `Read()` — orchestrates the full read: calls `ReadData()` then `ReadChildren()`.
+    ///   2. `ReadData()` — parses the chunk's own payload into the `Importer`.
+    ///   3. `ReadChildren()` — recursively reads nested child chunks.
+    ///   4. `Process()` — optional post-processing hook called after the chunk tree is built.
     class Chunk {
     public:
+        /// @brief Construct a chunk backed by @p stream.
         Chunk(std::istream& stream) : stream_(stream) {}
         virtual ~Chunk() = default;
-        
-        // Virtual function to read chunk data from stream - now has default implementation
+
+        /// @brief Orchestrate a full read: `ReadData()` followed by `ReadChildren()`.
+        /// @return @c false if any step fails.
         virtual bool Read(Importer& importer);
+
+        /// @brief Parse this chunk's own payload and push data into @p importer.
+        /// @return @c false on stream or parse error.
         virtual bool ReadData(Importer& importer);
+
+        /// @brief Return @c true if @p childId is a valid child chunk type for this chunk.
         virtual bool ValidChild(uint16_t childId) const;
-        
-        // Read child chunks from stream
+
+        /// @brief Recursively read all child chunks up to `dataEndPos_`.
         bool ReadChildren(Importer& importer);
-        
-        // Virtual function to process chunk after reading (for post-processing)
+
+        /// @brief Optional post-processing hook called after the whole chunk tree is read.
         virtual bool Process(Importer& importer);
-        
-        // Virtual function to get chunk information for debugging/display
+
+        /// @brief Return a human-readable summary of this chunk's data (for logging).
         virtual std::string GetInfo() const;
-        
-        // Get chunk type name for display
+
+        /// @brief Return the chunk's type name string (e.g. `"POS_TRACK_TAG"`).
         virtual std::string GetTypeName() const;
-        
-        // Getters
+
+        /// @brief Return the chunk's 16-bit type identifier.
         uint16_t GetId() const;
-        
-        // Create and read a chunk from stream (factory method)
+
+        /// @brief Read the next chunk header from @p stream and dispatch to the factory.
+        /// @return The constructed (and possibly specialised) chunk, or a base `Chunk` on unknown IDs.
         static std::shared_ptr<Chunk> CreateChunk(std::istream& stream, Importer& importer);
-        
-    // Read support for primitive types
+
     protected:
+        /// @brief Read a null-terminated ASCII string from the stream.
         bool Read(std::string& value);
 
+        /// @brief Read a trivially-copyable value directly from an arbitrary @p stream.
         template<typename T>
         static bool Read(T& value, std::istream& stream) {
             stream.read(reinterpret_cast<char*>(&value), sizeof(value));
             return stream.good();
         }
-        
+
+        /// @brief Read a trivially-copyable value from the chunk's own stream, with bounds check.
         template<typename T>
         bool Read(T& value) {
             return Chunk::Read(value, stream_) && stream_.tellg() <= dataEndPos_;
         }
 
     protected:
-        ChunkHeader header_;
-        uint16_t parentId = 0;
+        ChunkHeader header_;              ///< The chunk's 6-byte header (id + length).
+        uint16_t parentId = 0;            ///< Type ID of the parent chunk (set by factory).
 
-        std::istream& stream_;
-        std::streampos dataEndPos_ = 0;
+        std::istream&  stream_;           ///< Shared binary input stream.
+        std::streampos dataEndPos_ = 0;   ///< Stream position one byte past this chunk's data.
 
-        friend class Importer;
+        friend class Debugger3DS::Parser::Importer;
         friend class ChunkFactory;
     };
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

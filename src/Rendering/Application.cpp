@@ -25,7 +25,10 @@ void SnapWindowToEdges(float snapDist = 20.0f) {
 
 } // anonymous namespace
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
 bool Application::LoadScene(const std::string& filepath) {
     Importer importer;
@@ -367,4 +370,4 @@ void Application::DrawImGui() {
     ImGui::End();
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

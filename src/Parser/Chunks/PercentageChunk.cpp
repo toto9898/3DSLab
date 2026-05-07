@@ -3,7 +3,10 @@
 #include "Material.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
     
     bool IntPercentageChunk::ReadData(Importer& importer) {
         // Get current material
@@ -125,4 +128,4 @@ namespace Debugger3DS {
         }
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

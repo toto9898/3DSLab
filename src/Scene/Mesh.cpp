@@ -1,6 +1,6 @@
 #include "Mesh.h"
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene {
     
     const std::vector<uint16_t>& Mesh::GetInvertedWindingIndices() const {
         if (invertedWindingIndices_.empty() && !faceIndices.empty()) {
@@ -27,4 +27,4 @@ namespace Debugger3DS {
         return {minBounds, maxBounds};
     }
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Scene

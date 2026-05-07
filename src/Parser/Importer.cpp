@@ -6,8 +6,12 @@
 #include <fstream>
 #include <streambuf>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser::Chunks;
     
+    /// @cond INTERNAL
     // In-memory stream buffer — wraps a contiguous char buffer as a std::istream source.
     // Eliminates per-read disk I/O by loading the entire file into RAM first.
     class MemoryStreamBuf : public std::streambuf {
@@ -28,6 +32,7 @@ namespace Debugger3DS {
             return seekoff(off_type(pos), std::ios_base::beg, mode);
         }
     };
+    /// @endcond
 
     bool Importer::Import3DS(const std::string& filename) {
         
@@ -97,4 +102,4 @@ namespace Debugger3DS {
         scene_.currentFrame = frame;
     }
     
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser

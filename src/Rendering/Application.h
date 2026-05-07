@@ -15,19 +15,26 @@
 #include <vector>
 #include <Eigen/Dense>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
+using Debugger3DS::Scene::Scene;
+using Debugger3DS::UI::SceneTreePanel;
+
+/// @brief Top-level application object that owns the window, renderer, camera, and UI.
+///
+/// Manages the main loop and scene loading lifecycle.
 class Application {
 public:
     Application() = default;
 
-    // Initialize window, renderer, UI (starts with empty scene)
+    /// @brief Initialize the window, renderer, and UI (starts with an empty scene).
     void SetupViewer();
 
-    // Run the main loop (blocking)
+    /// @brief Run the main loop (blocking until the window is closed).
     void Run();
 
-    // Open a 3DS file: clears previous scene and loads the new one
+    /// @brief Open a 3DS file: clears the previous scene and loads the new one.
+    /// @param filepath Path to the .3ds file.
     void OpenScene(const std::string& filepath);
 
 private:
@@ -39,7 +46,7 @@ private:
     MeshSelector selector_;
     TextureLoader textureLoader_;
 
-    std::unique_ptr<UI::SceneTreePanel> scenePanel_;
+    std::unique_ptr<SceneTreePanel> scenePanel_;
     std::unordered_map<uint16_t, int> nodeToDataId_;
 
     std::vector<PosColorVertex> axisLines_;
@@ -75,4 +82,4 @@ private:
     bool scrollLoggerToBottom_ = false;
 };
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

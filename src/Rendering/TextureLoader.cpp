@@ -4,7 +4,7 @@
 #include "TextureLoader.h"
 #include <iostream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 bgfx::TextureHandle TextureLoader::LoadTexture(const std::string& basePath, const std::string& filename) {
     // Check cache first
@@ -47,4 +47,4 @@ void TextureLoader::Shutdown() {
     cache_.clear();
 }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering

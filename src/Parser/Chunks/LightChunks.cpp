@@ -4,7 +4,10 @@
 #include "Scene.h"
 #include <sstream>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Parser::Chunks {
+
+using namespace Debugger3DS::Scene;
+using namespace Debugger3DS::Parser;
 
     bool NDirectLightChunk::ReadData(Importer& importer) {
         Eigen::Vector3f position;
@@ -72,4 +75,4 @@ namespace Debugger3DS {
         return true;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Parser::Chunks

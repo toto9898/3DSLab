@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Scene {
 
     // TrackHeader implementation
     bool TrackHeader::Read(std::istream& stream) {
@@ -106,4 +106,4 @@ namespace Debugger3DS {
         return size;
     }
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Scene

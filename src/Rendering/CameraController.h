@@ -6,65 +6,83 @@
 #include <vector>
 #include <unordered_map>
 
-namespace Debugger3DS {
+namespace Debugger3DS::Rendering {
 
 class Renderer;
 
+/// @brief Arcball / turntable orbit camera with smooth zoom animation.
+///
+/// Translates raw mouse drag and scroll-wheel events into view and projection
+/// matrices suitable for bgfx.  Call Update() once per frame to advance the
+/// animated zoom.
 class CameraController {
 public:
     CameraController() = default;
 
-    // Initialize with default camera state
+    /// @brief Set up the camera with the given projection parameters.
+    /// @param fovDeg Vertical field of view in degrees.
+    /// @param near   Near clip distance.
+    /// @param far    Far clip distance.
     void Init(float fovDeg = 45.0f, float near = 0.1f, float far = 10000.0f);
 
-    // Process mouse motion when dragging. Returns true if the camera changed.
-    // prevX/Y: previous mouse position in pixels, currX/Y: current mouse position in pixels
-    // leftDrag: left button held, rightDrag: right button held
-    // pivotScreenX/Y: pixel coordinates of the rotation pivot in window space; pass negative to use viewport center
+    /// @brief Handle a mouse drag event.
+    /// @param prevX       Mouse X at the start of this drag delta (pixels).
+    /// @param prevY       Mouse Y at the start of this drag delta (pixels).
+    /// @param currX       Mouse X at the end of this drag delta (pixels).
+    /// @param currY       Mouse Y at the end of this drag delta (pixels).
+    /// @param leftDrag    @c true while the left mouse button is held.
+    /// @param rightDrag   @c true while the right mouse button is held (pan).
+    /// @param viewportW   Viewport width in pixels.
+    /// @param viewportH   Viewport height in pixels.
+    /// @param pivotScreenX  Rotation pivot X in window-space pixels; pass negative to use viewport centre.
+    /// @param pivotScreenY  Rotation pivot Y in window-space pixels; pass negative to use viewport centre.
     void OnMouseDrag(float prevX, float prevY, float currX, float currY, bool leftDrag, bool rightDrag, float viewportW, float viewportH, float pivotScreenX = -1.0f, float pivotScreenY = -1.0f);
+
+    /// @brief Handle a scroll-wheel event.
+    /// @param delta Scroll delta (positive = zoom in).
     void OnScroll(float delta);
 
-    // Update zoom animation. Call every frame.
+    /// @brief Advance the zoom animation.  Call once per frame.
+    /// @return @c true if the view changed this frame (triggers a re-render).
     bool Update();
 
-    // Zoom to fit a set of nodes (given their V/F data via the renderer)
+    /// @brief Animate the camera to fit the given node IDs.
+    /// @param nodeIds      Node IDs to frame.
+    /// @param nodeToDataId Map from node ID to renderer data ID.
+    /// @param renderer     Renderer to query geometry bounds from.
     void ZoomToNodes(const std::vector<uint16_t>& nodeIds,
                      const std::unordered_map<uint16_t, int>& nodeToDataId,
                      const Renderer& renderer);
 
-    // Zoom to fit a bounding box
+    /// @brief Animate the camera to fit the given world-space bounding box.
     void ZoomToFit(const Eigen::Vector3d& bboxMin, const Eigen::Vector3d& bboxMax);
 
-    // Get current view/projection matrices
-    Eigen::Matrix4f GetViewMatrix() const;
-    Eigen::Matrix4f GetProjectionMatrix(float aspectRatio, bool homogeneousDepth = true) const;
+    Eigen::Matrix4f GetViewMatrix() const;                                            ///< Current view matrix.
+    Eigen::Matrix4f GetProjectionMatrix(float aspectRatio, bool homogeneousDepth = true) const; ///< Current projection matrix.
+    Eigen::Vector3f GetEyePosition() const;                                           ///< Eye position in world space.
 
-    // Get eye position in world space (for lighting)
-    Eigen::Vector3f GetEyePosition() const;
+    float GetFov() const { return fovDeg_; } ///< Vertical FOV in degrees.
 
-    float GetFov() const { return fovDeg_; }
-
-    // Adjust rotation sensitivity (arcball speed)
+    /// @brief Set the arcball rotation speed multiplier.
     void SetRotateSpeed(float speed);
 
-    // Rotation mode: Arcball (sphere) or Turntable (constrained yaw/pitch)
+    /// @brief Rotation mode selection.
     enum class RotationMode { Arcball = 0, Turntable = 1 };
-    void SetRotationMode(RotationMode mode);
-    RotationMode GetRotationMode() const;
+    void SetRotationMode(RotationMode mode); ///< Switch between arcball and turntable modes.
+    RotationMode GetRotationMode() const;    ///< Current rotation mode.
 
-    // Invert both horizontal and vertical rotation directions
+    /// @brief Mirror horizontal and vertical rotation directions.
     void SetInvertRotation(bool invert);
-    bool GetInvertRotation() const;
+    bool GetInvertRotation() const; ///< @c true if rotation directions are inverted.
 
-    // Set the look-at target directly (pivot point for rotations)
+    /// @brief Move the look-at target (also shifts the camera to maintain the offset).
     void SetTarget(const Eigen::Vector3f& target);
 
-    // Set the look-at target but preserve the current eye position (don't move the camera).
-    // Useful when changing the rotation/pivot center without translating the view.
+    /// @brief Change the look-at target while keeping the eye position fixed.
     void SetTargetKeepEye(const Eigen::Vector3f& target);
 
-    // Set the orbit pivot point. Rotations will orbit the camera around this point
-    // without moving the camera immediately. Defaults to target_.
+    /// @brief Set the orbit pivot independently of the look-at target.
+    /// Rotations will orbit around this point without immediately moving the camera.
     void SetOrbitPivot(const Eigen::Vector3f& pivot);
 
 private:
@@ -102,4 +120,4 @@ private:
     bool invertRotation_ = false;
 };
 
-} // namespace Debugger3DS
+} // namespace Debugger3DS::Rendering::Rendering::Rendering
