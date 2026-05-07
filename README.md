@@ -4,6 +4,8 @@ A 3DS file importer and viewer built with **bgfx**, **GLFW**, and **Dear ImGui**
 
 Parses binary `.3ds` files (3D Studio Max format) and displays geometry, materials, lights, cameras, and animation node hierarchies in an interactive inspector.
 
+![Scene view](docs/screenshots/scene.png)
+
 ## Dependencies
 
 All fetched automatically by CMake via FetchContent — no manual installation needed.

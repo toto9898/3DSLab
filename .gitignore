@@ -51,12 +51,7 @@ temp/*
 *data/
 
 # Image files
-*.png
-*.jpg
-*.jpeg
-*.bmp
-*.gif
 *.mtl
 
 # Doxygen
-docs/generated
+docs/generated/*
