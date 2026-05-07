@@ -64,11 +64,15 @@ private:
     // Accumulated error messages routed via std::cerr redirect
     std::string errorLog_;
     std::unique_ptr<CerrRedirect> cerrRedirect_;
+    bool scrollErrorsToBottom_ = false;
 
     // Accumulated log output routed via std::cout redirect
     std::string logBuffer_;
     std::unique_ptr<CoutRedirect> coutRedirect_;
+    bool scrollOutputToBottom_ = false;
+
     std::ostringstream loggerStream_;
+    bool scrollLoggerToBottom_ = false;
 };
 
 } // namespace Debugger3DS

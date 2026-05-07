@@ -50,6 +50,7 @@ void Application::OpenScene(const std::string& filepath) {
     loggerStream_.clear();
     if (!LoadScene(filepath))
         return;
+    scrollLoggerToBottom_ = true;
 
     // Clear previous GPU state
     renderer_.ClearAllMeshes();
@@ -149,9 +150,11 @@ void Application::SetupViewer() {
     // Redirect std::cerr to the error log panel — tees to the original cerr too
     cerrRedirect_ = std::make_unique<CerrRedirect>(std::cerr, [this](const std::string& msg) {
         errorLog_ += msg + "\n";
+        scrollErrorsToBottom_ = true;
     });
     coutRedirect_ = std::make_unique<CoutRedirect>(std::cout, [this](const std::string& msg) {
         logBuffer_ += msg + "\n";
+        scrollOutputToBottom_ = true;
     });
     logging::log.output = &loggerStream_;
 
@@ -324,7 +327,7 @@ void Application::DrawImGui() {
                     errorLog_.clear();
                 ImGui::BeginChild("##errorlog", ImVec2(0, 120), true);
                 ImGui::TextUnformatted(errorLog_.c_str());
-                ImGui::SetScrollHereY(1.0f);
+                if (scrollErrorsToBottom_) { ImGui::SetScrollHereY(1.0f); scrollErrorsToBottom_ = false; }
                 ImGui::EndChild();
             }
             ImGui::EndTabItem();
@@ -337,7 +340,7 @@ void Application::DrawImGui() {
                     logBuffer_.clear();
                 ImGui::BeginChild("##logoutput", ImVec2(0, 120), true);
                 ImGui::TextUnformatted(logBuffer_.c_str());
-                ImGui::SetScrollHereY(1.0f);
+                if (scrollOutputToBottom_) { ImGui::SetScrollHereY(1.0f); scrollOutputToBottom_ = false; }
                 ImGui::EndChild();
             }
             ImGui::EndTabItem();
@@ -353,7 +356,7 @@ void Application::DrawImGui() {
                 }
                 ImGui::BeginChild("##loggeroutput", ImVec2(0, 120), true);
                 ImGui::TextUnformatted(loggerStr.c_str());
-                ImGui::SetScrollHereY(1.0f);
+                if (scrollLoggerToBottom_) { ImGui::SetScrollHereY(1.0f); scrollLoggerToBottom_ = false; }
                 ImGui::EndChild();
             }
             ImGui::EndTabItem();
