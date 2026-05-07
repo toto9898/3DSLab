@@ -325,7 +325,7 @@ void Application::DrawImGui() {
             } else {
                 if (ImGui::SmallButton("Clear##errors"))
                     errorLog_.clear();
-                ImGui::BeginChild("##errorlog", ImVec2(0, 120), true);
+                ImGui::BeginChild("##errorlog", ImVec2(0, 0), true);
                 ImGui::TextUnformatted(errorLog_.c_str());
                 if (scrollErrorsToBottom_) { ImGui::SetScrollHereY(1.0f); scrollErrorsToBottom_ = false; }
                 ImGui::EndChild();
@@ -338,7 +338,7 @@ void Application::DrawImGui() {
             } else {
                 if (ImGui::SmallButton("Clear##output"))
                     logBuffer_.clear();
-                ImGui::BeginChild("##logoutput", ImVec2(0, 120), true);
+                ImGui::BeginChild("##logoutput", ImVec2(0, 0), true);
                 ImGui::TextUnformatted(logBuffer_.c_str());
                 if (scrollOutputToBottom_) { ImGui::SetScrollHereY(1.0f); scrollOutputToBottom_ = false; }
                 ImGui::EndChild();
@@ -354,7 +354,7 @@ void Application::DrawImGui() {
                     loggerStream_.str("");
                     loggerStream_.clear();
                 }
-                ImGui::BeginChild("##loggeroutput", ImVec2(0, 120), true);
+                ImGui::BeginChild("##loggeroutput", ImVec2(0, 0), true);
                 ImGui::TextUnformatted(loggerStr.c_str());
                 if (scrollLoggerToBottom_) { ImGui::SetScrollHereY(1.0f); scrollLoggerToBottom_ = false; }
                 ImGui::EndChild();
