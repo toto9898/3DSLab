@@ -17,8 +17,6 @@ namespace Debugger3DS {
 class MeshUploader {
 public:
     struct MeshEntry {
-        const Eigen::Vector3f* verts = nullptr;  // points into Mesh::vertices (non-owning)
-        int numVerts = 0;
         const uint16_t* indices = nullptr;        // points into Mesh::faceIndices or inverted cache
         int numIndices = 0;
         Eigen::Matrix4f modelMatrix = Eigen::Matrix4f::Identity();

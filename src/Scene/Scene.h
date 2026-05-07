@@ -11,6 +11,8 @@
 #include "Light.h"
 #include "Camera.h"
 #include "ObjectNode.h"
+#include "CameraNode.h"
+#include "LightNode.h"
 
 namespace Debugger3DS {
     
@@ -35,17 +37,29 @@ namespace Debugger3DS {
         std::vector<std::shared_ptr<Mesh>>      meshes;
         std::vector<std::shared_ptr<Light>>     lights;
         std::vector<std::shared_ptr<Camera>>    cameras;
-        std::vector<ObjectNodePtr> objectNodes;
+        std::vector<ObjectNodePtr>              objectNodes;
+
+        // Animated camera/light nodes from KFDATA section
+        std::vector<CameraNodePtr>              cameraNodes;
+        std::vector<LightNodePtr>               lightNodes;
+        std::vector<CameraTargetNodePtr>        cameraTargetNodes;  // TARGET_NODE_TAG
+        std::vector<LightTargetNodePtr>         lightTargetNodes;   // L_TARGET_NODE_TAG
         
+        // Resolve mesh/parent links for object nodes
         void BuildObjectNodeHierarchy();
+        // Resolve camera/light associations and link target nodes
+        void BuildAnimationNodeAssociations();
+
         Eigen::Matrix4f GetNodeGlobalTransform(const ObjectNodePtr& node, uint32_t frame = 0xFFFFFFFF) const;
         
         // Collect nodeId + all descendant nodeIds (BFS)
         std::vector<uint16_t> GetDescendantNodeIds(uint16_t nodeId) const;
         
         // Helper functions
-        std::shared_ptr<Mesh> FindMesh(const std::string& name);
+        std::shared_ptr<Mesh>   FindMesh(const std::string& name);
         const std::shared_ptr<Mesh> FindMesh(const std::string& name) const;
+        std::shared_ptr<Light>  FindLight(const std::string& name) const;
+        std::shared_ptr<Camera> FindCamera(const std::string& name) const;
         
         // Print scene information
         void PrintInfo() const;

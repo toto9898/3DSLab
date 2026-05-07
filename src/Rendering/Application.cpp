@@ -31,7 +31,7 @@ bool Application::LoadScene(const std::string& filepath) {
     Importer importer;
     logging::Logger::enabled = false;
     if (!importer.Import3DS(filepath)) {
-        logging::log << "Failed to load 3DS file" << std::endl;
+        errorLog_ += "[Import] Failed to load: " + filepath + "\n";
         logging::Logger::enabled = true;
         return false;
     }
@@ -46,6 +46,7 @@ bool Application::LoadScene(const std::string& filepath) {
 }
 
 void Application::OpenScene(const std::string& filepath) {
+    errorLog_.clear();
     if (!LoadScene(filepath))
         return;
 
@@ -146,6 +147,11 @@ void Application::SetupViewer() {
 
     // Initialize selector
     selector_.Init(renderer_, camera_);
+
+    // Wire texture error messages into the error log
+    textureLoader_.SetErrorCallback([this](const std::string& msg) {
+        errorLog_ += "[Texture] " + msg + "\n";
+    });
 
     // Create empty scene panel
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
@@ -301,6 +307,19 @@ void Application::DrawImGui() {
     if (ImGui::CollapsingHeader("Interaction", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Checkbox("Show pivot marker", &showPivotMarker_)) {
             // toggle handled via renderer each frame
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Errors")) {
+        if (errorLog_.empty()) {
+            ImGui::TextDisabled("No errors.");
+        } else {
+            if (ImGui::SmallButton("Clear##errors"))
+                errorLog_.clear();
+            ImGui::BeginChild("##errorlog", ImVec2(0, 120), true);
+            ImGui::TextUnformatted(errorLog_.c_str());
+            ImGui::SetScrollHereY(1.0f);
+            ImGui::EndChild();
         }
     }
 

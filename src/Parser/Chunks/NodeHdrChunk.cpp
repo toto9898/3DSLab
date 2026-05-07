@@ -17,6 +17,16 @@ namespace Debugger3DS {
             currentObjectNode->associatedMeshName = name_;
             currentObjectNode->parentId = parentId_;
             currentObjectNode->nodeFlags = flags1_;
+        } else if (auto camNode = importer.GetCurrentCameraNode()) {
+            camNode->cameraName = name_;
+            camNode->parentId   = parentId_;
+        } else if (auto camTarget = importer.GetCurrentCameraTargetNode()) {
+            camTarget->name = name_;
+        } else if (auto lightNode = importer.GetCurrentLightNode()) {
+            lightNode->lightName = name_;
+            lightNode->parentId  = parentId_;
+        } else if (auto lightTarget = importer.GetCurrentLightTargetNode()) {
+            lightTarget->name = name_;
         }
 
         logging::log << "Node Header: Name=" << name_ << " Flags1=" << flags1_ << " Flags2=" << flags2_ << " ParentIndex=" << parentId_ << std::endl;

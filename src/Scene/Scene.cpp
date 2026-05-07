@@ -89,7 +89,52 @@ namespace Debugger3DS {
         }
         return nullptr;
     }
-    
+
+    std::shared_ptr<Light> Scene::FindLight(const std::string& name) const {
+        for (const auto& light : lights) {
+            if (light->name == name)
+                return light;
+        }
+        return nullptr;
+    }
+
+    std::shared_ptr<Camera> Scene::FindCamera(const std::string& name) const {
+        for (const auto& cam : cameras) {
+            if (cam->name == name)
+                return cam;
+        }
+        return nullptr;
+    }
+
+    void Scene::BuildAnimationNodeAssociations() {
+        // Associate each CameraNode with its Camera by name
+        for (auto& camNode : cameraNodes) {
+            camNode->associatedCamera = FindCamera(camNode->cameraName);
+        }
+        // Associate each LightNode with its Light by name
+        for (auto& lightNode : lightNodes) {
+            lightNode->associatedLight = FindLight(lightNode->lightName);
+        }
+        // Link CameraTargetNodes to their parent CameraNode (same name)
+        for (auto& targetNode : cameraTargetNodes) {
+            for (auto& camNode : cameraNodes) {
+                if (targetNode->name == camNode->cameraName) {
+                    camNode->targetNode = targetNode;
+                    break;
+                }
+            }
+        }
+        // Link LightTargetNodes to their parent LightNode (same name)
+        for (auto& targetNode : lightTargetNodes) {
+            for (auto& lightNode : lightNodes) {
+                if (targetNode->name == lightNode->lightName) {
+                    lightNode->targetNode = targetNode;
+                    break;
+                }
+            }
+        }
+    }
+
     void Scene::PrintInfo() const {
         logging::log << "\n=== 3DS Scene Information ===\n";
         logging::log << "Version: " << version << "\n";
@@ -100,6 +145,8 @@ namespace Debugger3DS {
         logging::log << "Lights: " << lights.size() << "\n";
         logging::log << "Cameras: " << cameras.size() << "\n";
         logging::log << "Object Nodes: " << objectNodes.size() << "\n";
+        logging::log << "Camera Nodes: " << cameraNodes.size() << "\n";
+        logging::log << "Light Nodes: " << lightNodes.size() << "\n";
         logging::log << "Animation: " << animationLength << " frames (" 
                      << segmentStart << "-" << segmentEnd << ")\n";
         logging::log << "KF Filename: " << kfFilename << "\n";

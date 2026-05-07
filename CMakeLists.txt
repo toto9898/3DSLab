@@ -190,6 +190,9 @@ set(SRC_FILES
     src/Parser/Chunks/SmoothGroupChunk.cpp
     src/Parser/Chunks/KeyframeChunks.cpp
     src/Parser/Chunks/ObjectNodeChunks.cpp
+    src/Parser/Chunks/AnimNodeChunks.cpp
+    src/Parser/Chunks/LightChunks.cpp
+    src/Parser/Chunks/CameraChunks.cpp
     src/UI/SceneTreePanel.cpp
 )
 
@@ -225,7 +228,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
-    target_link_options(${PROJECT_NAME} PRIVATE "/ENTRY:mainCRTStartup")
+    target_link_options(${PROJECT_NAME} PRIVATE "LINKER:/ENTRY:mainCRTStartup")
 endif()
 
 # ──────────────────────────────────────────────────────────

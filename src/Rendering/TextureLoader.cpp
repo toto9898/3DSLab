@@ -6,6 +6,10 @@
 
 namespace Debugger3DS {
 
+void TextureLoader::SetErrorCallback(std::function<void(const std::string&)> callback) {
+    onError_ = std::move(callback);
+}
+
 bgfx::TextureHandle TextureLoader::LoadTexture(const std::string& basePath, const std::string& filename) {
     // Check cache first
     auto it = cache_.find(filename);
@@ -17,7 +21,11 @@ bgfx::TextureHandle TextureLoader::LoadTexture(const std::string& basePath, cons
     int width, height, channels;
     unsigned char* data = stbi_load(fullPath.c_str(), &width, &height, &channels, 4); // force RGBA
     if (!data) {
-        std::cerr << "TextureLoader: failed to load '" << fullPath << "': " << stbi_failure_reason() << std::endl;
+        std::string msg = "TextureLoader: failed to load '" + fullPath + "': " + stbi_failure_reason();
+        if (onError_)
+            onError_(msg);
+        else
+            std::cerr << msg << std::endl;
         cache_[filename] = BGFX_INVALID_HANDLE;
         return BGFX_INVALID_HANDLE;
     }
@@ -31,7 +39,7 @@ bgfx::TextureHandle TextureLoader::LoadTexture(const std::string& basePath, cons
         false, // no mipmaps
         1,     // single layer
         bgfx::TextureFormat::RGBA8,
-        0,     // default WRAP mode (3DS textures commonly tile)
+        BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
         mem
     );
 

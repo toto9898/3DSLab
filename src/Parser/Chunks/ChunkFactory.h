@@ -21,16 +21,15 @@ namespace Debugger3DS {
         
         // Create a chunk based on its ID
         std::shared_ptr<Chunk> CreateChunk(const ChunkHeader& header, std::istream& stream) {
-            auto chunk      = std::make_shared<Chunk>(stream);
             auto startPos   = stream.tellg() - static_cast<std::streamoff>(6); // We already have the header read, so start position is 6 behind
             auto endPos     = startPos + static_cast<std::streamoff>(header.length);
-            
 
+            std::shared_ptr<Chunk> chunk;
             auto it = creators_.find(header.id);
             if (it != creators_.end()) {
                 chunk = it->second();
-            }
-            else {
+            } else {
+                chunk = std::make_shared<Chunk>(stream);
                 stream.seekg(endPos);
             }
             

@@ -25,6 +25,9 @@ namespace Debugger3DS {
 
         Eigen::Matrix4f meshMatrix = Eigen::Matrix4f::Identity();
 
+        // Static visibility flag (from OBJ_HIDDEN chunk on the NAMED_OBJECT)
+        bool isHidden = false;
+
         Mesh() : NamedObject("Unnamed Mesh") {}
         Mesh(const std::string& meshName) : NamedObject(meshName) {}
         

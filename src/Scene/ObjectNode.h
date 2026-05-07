@@ -120,4 +120,7 @@ namespace Debugger3DS {
     template<>
     std::string AnimationTrack<std::string>::GetValueAtFrame(uint32_t frame) const;
 
+    template<>
+    float AnimationTrack<float>::GetValueAtFrame(uint32_t frame) const;
+
 } // namespace Debugger3DS

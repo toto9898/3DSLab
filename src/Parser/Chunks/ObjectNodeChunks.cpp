@@ -96,6 +96,7 @@ namespace Debugger3DS {
     template class TrackTagChunk<Eigen::Vector4f>;
     template class TrackTagChunk<std::string>;
     template class TrackTagChunk<bool>;
+    template class TrackTagChunk<float>;
 
     // PosTrackTagChunk implementation
     bool PosTrackTagChunk::ReadKeyData(AnimationKey<Eigen::Vector3f>& key) {
@@ -108,6 +109,14 @@ namespace Debugger3DS {
     void PosTrackTagChunk::SetTrackInImporter(Importer& importer) {
         if (auto currentNode = importer.GetCurrentObjectNode()) {
             currentNode->positionTrack = track_;
+        } else if (auto camNode = importer.GetCurrentCameraNode()) {
+            camNode->positionTrack = track_;
+        } else if (auto camTarget = importer.GetCurrentCameraTargetNode()) {
+            camTarget->positionTrack = track_;
+        } else if (auto lightNode = importer.GetCurrentLightNode()) {
+            lightNode->positionTrack = track_;
+        } else if (auto lightTarget = importer.GetCurrentLightTargetNode()) {
+            lightTarget->positionTrack = track_;
         }
     }
 
@@ -177,6 +186,14 @@ namespace Debugger3DS {
         // Set in current object node
         if (auto currentObjectNode = importer.GetCurrentObjectNode()) {
             currentObjectNode->nodeId = nodeId_;
+        } else if (auto camNode = importer.GetCurrentCameraNode()) {
+            camNode->nodeId = nodeId_;
+        } else if (auto camTarget = importer.GetCurrentCameraTargetNode()) {
+            camTarget->nodeId = nodeId_;
+        } else if (auto lightNode = importer.GetCurrentLightNode()) {
+            lightNode->nodeId = nodeId_;
+        } else if (auto lightTarget = importer.GetCurrentLightTargetNode()) {
+            lightTarget->nodeId = nodeId_;
         }
         
         return true;

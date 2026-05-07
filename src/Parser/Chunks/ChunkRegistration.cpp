@@ -16,6 +16,9 @@
 #include "SmoothGroupChunk.h"
 #include "KeyframeChunks.h"
 #include "ObjectNodeChunks.h"
+#include "AnimNodeChunks.h"
+#include "LightChunks.h"
+#include "CameraChunks.h"
 #include "ChunkFactory.h"
 
 namespace Debugger3DS {
@@ -61,7 +64,37 @@ namespace Debugger3DS {
         factory.RegisterChunk<SmoothGroupChunk>(ChunkType::SMOOTH_GROUP, stream);
         factory.RegisterChunk<MeshMatrixChunk>(ChunkType::MESH_MATRIX, stream);
         factory.RegisterChunk<MshMatGroupChunk>(ChunkType::MSH_MAT_GROUP, stream);
-        
+
+        // Light chunks
+        factory.RegisterChunk<NDirectLightChunk>(ChunkType::N_DIRECT_LIGHT, stream);
+        factory.RegisterChunk<DLSpotlightChunk>(ChunkType::DL_SPOTLIGHT, stream);
+        factory.RegisterChunk<DLOffChunk>(ChunkType::DL_OFF, stream);
+        factory.RegisterChunk<DLInnerRangeChunk>(ChunkType::DL_INNER_RANGE, stream);
+        factory.RegisterChunk<DLOuterRangeChunk>(ChunkType::DL_OUTER_RANGE, stream);
+        factory.RegisterChunk<DLMultiplierChunk>(ChunkType::DL_MULTIPLIER, stream);
+
+        // Camera chunks
+        factory.RegisterChunk<NCameraChunk>(ChunkType::N_CAMERA, stream);
+        factory.RegisterChunk<CamRangesChunk>(ChunkType::CAM_RANGES, stream);
+
+        // Ambient light (container — color supplied by child COLOR_F/COLOR_24)
+        factory.RegisterChunk<AmbientLightChunk>(ChunkType::AMBIENT_LIGHT, stream);
+
+        // Camera/light animation node container tags
+        factory.RegisterChunk<CameraNodeTagChunk>(ChunkType::CAMERA_NODE_TAG, stream);
+        factory.RegisterChunk<TargetNodeTagChunk>(ChunkType::TARGET_NODE_TAG, stream);
+        factory.RegisterChunk<LightNodeTagChunk>(ChunkType::LIGHT_NODE_TAG, stream);
+        factory.RegisterChunk<LTargetNodeTagChunk>(ChunkType::L_TARGET_NODE_TAG, stream);
+
+        // Animated float tracks (camera fov/roll, spotlight hotspot/falloff, light color)
+        factory.RegisterChunk<FovTrackTagChunk>(ChunkType::FOV_TRACK_TAG, stream);
+        factory.RegisterChunk<RollTrackTagChunk>(ChunkType::ROLL_TRACK_TAG, stream);
+        factory.RegisterChunk<HotTrackTagChunk>(ChunkType::HOT_TRACK_TAG, stream);
+        factory.RegisterChunk<FallTrackTagChunk>(ChunkType::FALL_TRACK_TAG, stream);
+        factory.RegisterChunk<ColTrackTagChunk>(ChunkType::COL_TRACK_TAG, stream);
+
+        // Object hidden flag
+        factory.RegisterChunk<ObjHiddenChunk>(ChunkType::OBJ_HIDDEN, stream);
         // Material chunks
         factory.RegisterChunk<MatEntryChunk>(ChunkType::MAT_ENTRY, stream);
         factory.RegisterChunk<MatNameChunk>(ChunkType::MAT_NAME, stream);

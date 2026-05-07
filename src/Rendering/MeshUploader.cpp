@@ -16,8 +16,6 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
     if (scene.objectNodes.empty() || !hasValidAssociations) {
         for (const auto& mesh : scene.meshes) {
             MeshEntry entry;
-            entry.verts = mesh->vertices.data();
-            entry.numVerts = static_cast<int>(mesh->vertices.size());
             entry.indices = mesh->faceIndices.data();
             entry.numIndices = static_cast<int>(mesh->faceIndices.size());
             entry.meshName = mesh->name;
@@ -26,26 +24,28 @@ std::vector<MeshUploader::MeshEntry> MeshUploader::GetMeshesToRender(const Scene
         }
     } else {
         for (const auto& node : scene.objectNodes) {
-            if (node->associatedMesh) {
-                MeshEntry entry;
-                Eigen::Matrix4f nodeTransform = scene.GetNodeGlobalTransform(node);
-                bool nodeReflected = nodeTransform.block<3, 3>(0, 0).determinant() < 0.0f;
-                bool meshReflected = node->associatedMesh->meshMatrix.block<3, 3>(0, 0).determinant() < 0.0f;
-                bool reflected = nodeReflected != meshReflected;
+            if (!node->associatedMesh)
+                continue;
+            // Skip nodes that are hidden at the initial frame
+            if (node->hideTrack.HasKeys() && node->hideTrack.GetValueAtFrame(scene.segmentStart))
+                continue;
 
-                entry.verts = node->associatedMesh->vertices.data();
-                entry.numVerts = static_cast<int>(node->associatedMesh->vertices.size());
-                entry.indices = reflected
-                    ? node->associatedMesh->GetInvertedWindingIndices().data()
-                    : node->associatedMesh->faceIndices.data();
-                entry.numIndices = static_cast<int>(node->associatedMesh->faceIndices.size());
-                entry.modelMatrix = nodeTransform;
-                entry.node = node;
-                entry.meshName = node->associatedMeshName;
-                entry.sourceMesh = node->associatedMesh;
-                entry.invertedWinding = reflected;
-                meshData.push_back(std::move(entry));
-            }
+            MeshEntry entry;
+            Eigen::Matrix4f nodeTransform = scene.GetNodeGlobalTransform(node);
+            bool nodeReflected = nodeTransform.block<3, 3>(0, 0).determinant() < 0.0f;
+            bool meshReflected = node->associatedMesh->meshMatrix.block<3, 3>(0, 0).determinant() < 0.0f;
+            bool reflected = nodeReflected != meshReflected;
+
+            entry.indices = reflected
+                ? node->associatedMesh->GetInvertedWindingIndices().data()
+                : node->associatedMesh->faceIndices.data();
+            entry.numIndices = static_cast<int>(node->associatedMesh->faceIndices.size());
+            entry.modelMatrix = nodeTransform;
+            entry.node = node;
+            entry.meshName = node->associatedMeshName;
+            entry.sourceMesh = node->associatedMesh;
+            entry.invertedWinding = reflected;
+            meshData.push_back(std::move(entry));
         }
     }
 

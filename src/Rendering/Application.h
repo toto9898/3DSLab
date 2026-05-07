@@ -58,6 +58,9 @@ private:
     void ProcessInput();
     void DrawImGui();
     bool sceneLoaded_ = false;
+
+    // Accumulated error messages (texture load failures, parse errors, etc.)
+    std::string errorLog_;
 };
 
 } // namespace Debugger3DS

@@ -148,14 +148,15 @@ namespace Debugger3DS {
             return false;
         }
         
-        // Find the key at or before this frame
-        for (int i = keys.size() - 1; i >= 0; --i) {
+        // Find the last key at or before this frame
+        for (int i = static_cast<int>(keys.size()) - 1; i >= 0; --i) {
             if (frame >= keys[i].frame) {
                 return keys[i].value;
             }
         }
         
-        return keys[0].value;
+        // frame is before the first key → object not yet hidden
+        return false;
     }
 
     template<>
@@ -173,5 +174,24 @@ namespace Debugger3DS {
         
         return keys[0].value;
     }
+    template<>
+    float AnimationTrack<float>::GetValueAtFrame(uint32_t frame) const {
+        if (keys.empty())
+            return 0.0f;
+        if (keys.size() == 1 || frame <= keys[0].frame)
+            return keys[0].value;
+        if (frame >= keys.back().frame)
+            return keys.back().value;
+        for (size_t i = 0; i < keys.size() - 1; ++i) {
+            if (frame >= keys[i].frame && frame <= keys[i + 1].frame) {
+                float t = static_cast<float>(frame - keys[i].frame) /
+                          static_cast<float>(keys[i + 1].frame - keys[i].frame);
+                return keys[i].value + t * (keys[i + 1].value - keys[i].value);
+            }
+        }
+        return keys[0].value;
+    }
 
+    // Explicit template instantiation for float tracks
+    template class AnimationTrack<float>;
 } // namespace Debugger3DS

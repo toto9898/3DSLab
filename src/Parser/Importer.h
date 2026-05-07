@@ -7,6 +7,8 @@
 #include <Eigen/Dense>
 #include "Scene.h"
 #include "Chunks/ChunkFactory.h"
+#include "CameraNode.h"
+#include "LightNode.h"
 
 // Forward declarations to avoid circular dependencies
 namespace Debugger3DS {
@@ -54,6 +56,26 @@ namespace Debugger3DS {
         // ObjectNode accessor
         ObjectNodePtr GetCurrentObjectNode() const { return currentObjectNode_; }
         void SetCurrentObjectNode(ObjectNodePtr node) { currentObjectNode_ = node; }
+
+        // Light accessor
+        std::shared_ptr<Light> GetCurrentLight() const { return currentLight_; }
+        void SetCurrentLight(std::shared_ptr<Light> light) { currentLight_ = light; }
+
+        // Camera accessor
+        std::shared_ptr<Camera> GetCurrentCamera() const { return currentCamera_; }
+        void SetCurrentCamera(std::shared_ptr<Camera> camera) { currentCamera_ = camera; }
+
+        // Camera animation node accessors
+        CameraNodePtr GetCurrentCameraNode() const { return currentCameraNode_; }
+        void SetCurrentCameraNode(CameraNodePtr node) { currentCameraNode_ = node; }
+        CameraTargetNodePtr GetCurrentCameraTargetNode() const { return currentCameraTargetNode_; }
+        void SetCurrentCameraTargetNode(CameraTargetNodePtr node) { currentCameraTargetNode_ = node; }
+
+        // Light animation node accessors
+        LightNodePtr GetCurrentLightNode() const { return currentLightNode_; }
+        void SetCurrentLightNode(LightNodePtr node) { currentLightNode_ = node; }
+        LightTargetNodePtr GetCurrentLightTargetNode() const { return currentLightTargetNode_; }
+        void SetCurrentLightTargetNode(LightTargetNodePtr node) { currentLightTargetNode_ = node; }
         
         // Factory accessor for chunk creation
         ChunkFactory& GetChunkFactory() { return chunkFactory_; }
@@ -74,7 +96,17 @@ namespace Debugger3DS {
         
         // Current object node being processed
         ObjectNodePtr currentObjectNode_ = nullptr;
-        
+
+        // Current light and camera being processed
+        std::shared_ptr<Light> currentLight_ = nullptr;
+        std::shared_ptr<Camera> currentCamera_ = nullptr;
+
+        // Current animation nodes being processed
+        CameraNodePtr           currentCameraNode_         = nullptr;
+        CameraTargetNodePtr     currentCameraTargetNode_   = nullptr;
+        LightNodePtr            currentLightNode_          = nullptr;
+        LightTargetNodePtr      currentLightTargetNode_    = nullptr;
+
         // Error handling
         bool hasError_ = false;
         std::string errorMessage_;
@@ -86,3 +118,4 @@ namespace Debugger3DS {
     };
     
 } // namespace Debugger3DS
+
