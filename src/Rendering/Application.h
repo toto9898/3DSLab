@@ -7,6 +7,7 @@
 #include "MeshSelector.h"
 #include "MeshUploader.h"
 #include "TextureLoader.h"
+#include "CerrRedirect.h"
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -59,8 +60,9 @@ private:
     void DrawImGui();
     bool sceneLoaded_ = false;
 
-    // Accumulated error messages (texture load failures, parse errors, etc.)
+    // Accumulated error messages routed via std::cerr redirect
     std::string errorLog_;
+    std::unique_ptr<CerrRedirect> cerrRedirect_;
 };
 
 } // namespace Debugger3DS

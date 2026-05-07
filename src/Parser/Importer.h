@@ -106,15 +106,6 @@ namespace Debugger3DS {
         CameraTargetNodePtr     currentCameraTargetNode_   = nullptr;
         LightNodePtr            currentLightNode_          = nullptr;
         LightTargetNodePtr      currentLightTargetNode_    = nullptr;
-
-        // Error handling
-        bool hasError_ = false;
-        std::string errorMessage_;
-        
-        void SetError(const std::string& message) {
-            hasError_ = true;
-            errorMessage_ = message;
-        }
     };
     
 } // namespace Debugger3DS

@@ -34,7 +34,7 @@ namespace Debugger3DS {
         // Open file and read entire contents into memory
         std::ifstream file(filename, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            SetError("Could not open file: " + filename);
+            std::cerr << "[Parser] Could not open file: " << filename << std::endl;
             return false;
         }
         
@@ -43,7 +43,7 @@ namespace Debugger3DS {
         
         std::vector<char> fileBuffer(static_cast<size_t>(fileSize));
         if (!file.read(fileBuffer.data(), fileSize)) {
-            SetError("Failed to read file into memory: " + filename);
+            std::cerr << "[Parser] Failed to read file into memory: " << filename << std::endl;
             return false;
         }
         file.close();
@@ -60,16 +60,16 @@ namespace Debugger3DS {
         // Read the main chunk using the new Chunk method
         std::shared_ptr<Chunk> mainChunk = Chunk::CreateChunk(memstream, *this);
         if (!mainChunk) {
-            SetError("Failed to create main chunk");
-        }
-        else if (mainChunk->Read(*this) == false) {
-            SetError("Failed to read main chunk");
+            std::cerr << "[Parser] Failed to create main chunk in: " << filename << std::endl;
+            return false;
+        } else if (mainChunk->Read(*this) == false) {
+            std::cerr << "[Parser] Failed to read 3DS data in: " << filename << std::endl;
             return false;
         }
         
         // Verify it's a valid 3DS file
         if (mainChunk->GetId() != ChunkType::M3DMAGIC) {
-            SetError("Not a valid 3DS file - missing M3DMAGIC chunk");
+            std::cerr << "[Parser] Not a valid 3DS file (missing M3DMAGIC): " << filename << std::endl;
             return false;
         }
         
@@ -79,7 +79,7 @@ namespace Debugger3DS {
         logging::log << "Successfully loaded 3DS file" << std::endl;
         scene_.PrintInfo();
         
-        return !hasError_;
+        return true;
     }
     
     void Importer::SetKeyframeHeader(uint16_t revision, const std::string& filename, uint32_t animLength) {

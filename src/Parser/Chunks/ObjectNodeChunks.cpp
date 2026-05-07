@@ -46,7 +46,7 @@ namespace Debugger3DS {
             objectNode = nullptr;
         }
 
-
+        importer.SetCurrentObjectNode(nullptr);
         return true;
     }
 

@@ -15,11 +15,12 @@ namespace Debugger3DS {
         using Chunk::Chunk;  // Inherit constructor
 
         bool ReadData(Importer& importer) override;
+        bool Process(Importer& importer) override;
         const std::string& GetObjectName() const;
         
     private:
-        std::string name_;  // Fixed member name
-        std::shared_ptr<NamedObject> targetObject_ = nullptr;  // Reference to scene object being built
+        std::string name_;
+        std::shared_ptr<NamedObject> targetObject_ = nullptr;
     };
     
 } // namespace Debugger3DS

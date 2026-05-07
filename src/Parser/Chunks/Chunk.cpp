@@ -43,26 +43,26 @@ namespace Debugger3DS {
             
             auto childChunk = CreateChunk(stream_, importer);
             if (!childChunk) {
-                logging::log << "Failed to create child chunk in " << GetTypeName()
-                             << " at stream position " << beforeRead << std::endl;
+                std::cerr << "[Parser] Failed to create child chunk in " << GetTypeName()
+                          << " at stream position " << beforeRead << std::endl;
                 break;
             }
 
             childChunk->parentId = GetId();
 
             if (!childChunk->Read(importer)) {
-                logging::log << "Failed to read child chunk " << childChunk->GetTypeName()
-                             << " (0x" << std::hex << childChunk->GetId() << std::dec
-                             << ") inside " << GetTypeName()
-                             << " at stream position " << beforeRead << std::endl;
+                std::cerr << "[Parser] Failed to read child chunk " << childChunk->GetTypeName()
+                          << " (0x" << std::hex << childChunk->GetId() << std::dec
+                          << ") inside " << GetTypeName()
+                          << " at stream position " << beforeRead << std::endl;
                 return false;
             }
         }
 
         if (stream_.tellg() != dataEndPos_) {
-            logging::log << "Chunk " << GetTypeName() << " (0x" << std::hex << GetId() << std::dec
-                         << "): expected end at " << dataEndPos_
-                         << " but stream at " << stream_.tellg() << std::endl;
+            std::cerr << "[Parser] Chunk " << GetTypeName() << " (0x" << std::hex << GetId() << std::dec
+                      << "): expected end at " << dataEndPos_
+                      << " but stream at " << stream_.tellg() << std::endl;
         }
 
         return stream_.tellg() == dataEndPos_;

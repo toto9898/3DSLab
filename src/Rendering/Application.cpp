@@ -31,7 +31,6 @@ bool Application::LoadScene(const std::string& filepath) {
     Importer importer;
     logging::Logger::enabled = false;
     if (!importer.Import3DS(filepath)) {
-        errorLog_ += "[Import] Failed to load: " + filepath + "\n";
         logging::Logger::enabled = true;
         return false;
     }
@@ -145,13 +144,13 @@ void Application::SetupViewer() {
         }
     };
 
+    // Redirect std::cerr to the error log panel — tees to the original cerr too
+    cerrRedirect_ = std::make_unique<CerrRedirect>([this](const std::string& msg) {
+        errorLog_ += msg + "\n";
+    });
+
     // Initialize selector
     selector_.Init(renderer_, camera_);
-
-    // Wire texture error messages into the error log
-    textureLoader_.SetErrorCallback([this](const std::string& msg) {
-        errorLog_ += "[Texture] " + msg + "\n";
-    });
 
     // Create empty scene panel
     scenePanel_ = std::make_unique<UI::SceneTreePanel>(scene_);
