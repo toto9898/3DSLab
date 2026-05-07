@@ -29,7 +29,6 @@ namespace Debugger3DS {
 
 bool Application::LoadScene(const std::string& filepath) {
     Importer importer;
-    logging::Logger::enabled = false;
     if (!importer.Import3DS(filepath)) {
         logging::Logger::enabled = true;
         return false;
@@ -46,6 +45,9 @@ bool Application::LoadScene(const std::string& filepath) {
 
 void Application::OpenScene(const std::string& filepath) {
     errorLog_.clear();
+    logBuffer_.clear();
+    loggerStream_.str("");
+    loggerStream_.clear();
     if (!LoadScene(filepath))
         return;
 
@@ -145,9 +147,13 @@ void Application::SetupViewer() {
     };
 
     // Redirect std::cerr to the error log panel — tees to the original cerr too
-    cerrRedirect_ = std::make_unique<CerrRedirect>([this](const std::string& msg) {
+    cerrRedirect_ = std::make_unique<CerrRedirect>(std::cerr, [this](const std::string& msg) {
         errorLog_ += msg + "\n";
     });
+    coutRedirect_ = std::make_unique<CoutRedirect>(std::cout, [this](const std::string& msg) {
+        logBuffer_ += msg + "\n";
+    });
+    logging::log.output = &loggerStream_;
 
     // Initialize selector
     selector_.Init(renderer_, camera_);
@@ -309,17 +315,50 @@ void Application::DrawImGui() {
         }
     }
 
-    if (ImGui::CollapsingHeader("Errors")) {
-        if (errorLog_.empty()) {
-            ImGui::TextDisabled("No errors.");
-        } else {
-            if (ImGui::SmallButton("Clear##errors"))
-                errorLog_.clear();
-            ImGui::BeginChild("##errorlog", ImVec2(0, 120), true);
-            ImGui::TextUnformatted(errorLog_.c_str());
-            ImGui::SetScrollHereY(1.0f);
-            ImGui::EndChild();
+    if (ImGui::BeginTabBar("##output_tabs")) {
+        if (ImGui::BeginTabItem("Errors")) {
+            if (errorLog_.empty()) {
+                ImGui::TextDisabled("No errors.");
+            } else {
+                if (ImGui::SmallButton("Clear##errors"))
+                    errorLog_.clear();
+                ImGui::BeginChild("##errorlog", ImVec2(0, 120), true);
+                ImGui::TextUnformatted(errorLog_.c_str());
+                ImGui::SetScrollHereY(1.0f);
+                ImGui::EndChild();
+            }
+            ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("Output")) {
+            if (logBuffer_.empty()) {
+                ImGui::TextDisabled("No output.");
+            } else {
+                if (ImGui::SmallButton("Clear##output"))
+                    logBuffer_.clear();
+                ImGui::BeginChild("##logoutput", ImVec2(0, 120), true);
+                ImGui::TextUnformatted(logBuffer_.c_str());
+                ImGui::SetScrollHereY(1.0f);
+                ImGui::EndChild();
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Logger")) {
+            std::string loggerStr = loggerStream_.str();
+            if (loggerStr.empty()) {
+                ImGui::TextDisabled("No logger output.");
+            } else {
+                if (ImGui::SmallButton("Clear##logger")) {
+                    loggerStream_.str("");
+                    loggerStream_.clear();
+                }
+                ImGui::BeginChild("##loggeroutput", ImVec2(0, 120), true);
+                ImGui::TextUnformatted(loggerStr.c_str());
+                ImGui::SetScrollHereY(1.0f);
+                ImGui::EndChild();
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
 
     ImGui::End();

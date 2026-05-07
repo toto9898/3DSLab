@@ -8,6 +8,7 @@
 #include "MeshUploader.h"
 #include "TextureLoader.h"
 #include "CerrRedirect.h"
+#include <sstream>
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -63,6 +64,11 @@ private:
     // Accumulated error messages routed via std::cerr redirect
     std::string errorLog_;
     std::unique_ptr<CerrRedirect> cerrRedirect_;
+
+    // Accumulated log output routed via std::cout redirect
+    std::string logBuffer_;
+    std::unique_ptr<CoutRedirect> coutRedirect_;
+    std::ostringstream loggerStream_;
 };
 
 } // namespace Debugger3DS

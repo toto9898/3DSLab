@@ -11,7 +11,7 @@ public:
     template<typename T>
     Logger& operator<<(const T& value) {
         if (enabled) {
-            std::cout << value;
+            *output << value;
         }
         return *this;
     }
@@ -19,12 +19,13 @@ public:
     // Handle stream manipulators like std::endl, std::flush, etc.
     Logger& operator<<(std::ostream& (*manip)(std::ostream&)) {
         if (enabled) {
-            std::cout << manip;
+            *output << manip;
         }
         return *this;
     }
 
     static inline bool enabled = true;
+    static inline std::ostream* output = &std::cout;
 };
 
 // Global instance
