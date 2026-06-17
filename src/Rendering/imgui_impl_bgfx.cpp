@@ -73,7 +73,7 @@ bool ImGui_ImplBgfx_Init(bgfx::ViewId viewId) {
         0,
         bgfx::copy(pixels, width * height * 4));
 
-    io.Fonts->SetTexID(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(s_fontTexture.idx)));
+    io.Fonts->SetTexID(static_cast<ImTextureID>(static_cast<uintptr_t>(s_fontTexture.idx)));
 
     return true;
 }
@@ -160,7 +160,7 @@ void ImGui_ImplBgfx_RenderDrawLists(ImDrawData* drawData) {
 
             // Set texture
             bgfx::TextureHandle texHandle;
-            texHandle.idx = static_cast<uint16_t>(reinterpret_cast<uintptr_t>(cmd.GetTexID()));
+            texHandle.idx = static_cast<uint16_t>(static_cast<uintptr_t>(cmd.GetTexID()));
             bgfx::setTexture(0, s_texUniform, texHandle);
 
             bgfx::setVertexBuffer(0, &tvb, 0, numVerts);

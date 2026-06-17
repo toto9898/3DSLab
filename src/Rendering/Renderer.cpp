@@ -1,6 +1,6 @@
 #include "Renderer.h"
 #include "Mesh.h"
-#include <bgfx/platform.h>
+#include <bgfx/bgfx.h>
 #include <bgfx/embedded_shader.h>
 #include <bx/math.h>
 #include <cstring>
